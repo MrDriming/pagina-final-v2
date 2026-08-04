@@ -1,7 +1,11 @@
-import { auth } from "@/lib/auth"
-import { headers } from "next/headers"
+import { eq } from "drizzle-orm"
+import { createClient } from "@/lib/supabase/server"
+import { db } from "@/lib/db"
+import { perfiles } from "@/lib/db/schema"
 
 export type Role = "alumno" | "profesor" | "admin"
+
+const ROLES_VALIDOS: Role[] = ["alumno", "profesor", "admin"]
 
 export interface SessionUser {
   id: string
@@ -12,24 +16,43 @@ export interface SessionUser {
   division: string | null
 }
 
+function normalizarRol(valor: unknown): Role {
+  return ROLES_VALIDOS.includes(valor as Role) ? (valor as Role) : "alumno"
+}
+
+/**
+ * Usuario logueado, o null. Combina la identidad de Supabase Auth
+ * (`auth.users`) con el perfil de la app (`public.perfiles`).
+ *
+ * El perfil se lee por Drizzle sobre la conexión directa a Postgres, que
+ * corre como `postgres` y saltea RLS. Es server-only a propósito: el
+ * browser nunca toca `perfiles`, y el rol nunca sale del cliente.
+ */
 export async function getSessionUser(): Promise<SessionUser | null> {
-  const session = await auth.api.getSession({ headers: await headers() })
-  if (!session?.user) return null
-  const u = session.user as unknown as {
-    id: string
-    name: string
-    email: string
-    role?: string
-    anio?: string | null
-    division?: string | null
-  }
+  const supabase = await createClient()
+  const { data, error } = await supabase.auth.getClaims()
+  const claims = data?.claims
+
+  if (error || !claims?.sub) return null
+
+  const id = claims.sub as string
+  const email = (claims.email as string) ?? ""
+  const metadata = (claims.user_metadata ?? {}) as Record<string, unknown>
+
+  const [perfil] = await db
+    .select()
+    .from(perfiles)
+    .where(eq(perfiles.userId, id))
+    .limit(1)
+
+  // Si el trigger todavía no corrió, caemos a lo que vino en el signup.
   return {
-    id: u.id,
-    name: u.name,
-    email: u.email,
-    role: (u.role as Role) ?? "alumno",
-    anio: u.anio ?? null,
-    division: u.division ?? null,
+    id,
+    name: perfil?.nombre || (metadata.name as string) || email,
+    email,
+    role: normalizarRol(perfil?.rol ?? metadata.role),
+    anio: perfil?.anio ?? (metadata.anio as string) ?? null,
+    division: perfil?.division ?? (metadata.division as string) ?? null,
   }
 }
 

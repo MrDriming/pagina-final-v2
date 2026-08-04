@@ -1,2 +1,17 @@
 node_modules/
-node_modules/
+
+# Next.js
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
+# Variables de entorno — NUNCA commitear (tienen la password de la DB)
+.env
+.env.*
+!.env.example
+
+# Varios
+.DS_Store
+*.log
+.vercel

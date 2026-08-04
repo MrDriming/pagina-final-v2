@@ -3,18 +3,26 @@
 import { cn } from "@/lib/utils"
 import { PERFIL, ROLES, type Rol } from "@/lib/mock-data"
 import { Menu, Bell, Search } from "lucide-react"
+import { LogoutButton } from "@/components/auth/logout-button"
 
 export function Topbar({
   rol,
   onRolChange,
   onOpenMenu,
+  nombre,
+  detalle,
 }: {
   rol: Rol
   onRolChange: (rol: Rol) => void
   onOpenMenu: () => void
+  nombre?: string
+  detalle?: string
 }) {
   const perfil = PERFIL[rol]
-  const iniciales = perfil.nombre
+  // Si viene el usuario real de la sesión lo usamos; si no, el mock de demo.
+  const nombreMostrado = nombre || perfil.nombre
+  const detalleMostrado = detalle || perfil.detalle
+  const iniciales = nombreMostrado
     .split(" ")
     .slice(0, 2)
     .map((p) => p[0])
@@ -75,9 +83,10 @@ export function Topbar({
             {iniciales}
           </div>
           <div className="hidden leading-tight sm:block">
-            <p className="text-sm font-medium text-foreground">{perfil.nombre}</p>
-            <p className="text-xs text-muted-foreground">{perfil.detalle}</p>
+            <p className="text-sm font-medium text-foreground">{nombreMostrado}</p>
+            <p className="text-xs text-muted-foreground">{detalleMostrado}</p>
           </div>
+          <LogoutButton />
         </div>
       </div>
     </header>

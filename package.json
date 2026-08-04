@@ -3,17 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-  "dev": "NODE_OPTIONS='--dns-result-order=ipv4first --tls-min-v1.0' NODE_TLS_REJECT_UNAUTHORIZED=0 next dev",
-  "build": "next build",
-  "start": "next start",
-  "lint": "eslint ."
-},
+    "dev": "NODE_OPTIONS='--dns-result-order=ipv4first' next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint ."
+  },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.110.1",
     "@vercel/analytics": "1.6.1",
-    "better-auth": "^1.6.23",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.2",
