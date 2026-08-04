@@ -31,7 +31,7 @@
 | `lib/permisos.test.ts` | Tests de la regla |
 | `lib/catedras.ts` | Consultas y ABM de cátedras (`server-only`) |
 | `lib/notas.ts` | Consultas de notas + Server Action de guardado (`server-only`) |
-| `drizzle/0004_seed_materias.sql` | Seed del catálogo de materias |
+| `drizzle/0005_seed_materias.sql` | Seed del catálogo de materias |
 | `app/(campus)/layout.tsx` | Sidebar + Topbar |
 | `app/(campus)/page.tsx` | Inicio |
 | `app/(campus)/error.tsx` | Boundary de errores del campus |
@@ -308,7 +308,7 @@ Run: `npx drizzle-kit migrate`
 Expected: `migrations applied successfully!`
 
 **Ojo con la numeración:** esta task consume los números `0002` y `0003`, así que
-el seed de la Task 3 pasa a ser `0004_seed_materias.sql`, con `idx: 4` en el
+el seed de la Task 3 pasa a ser `0005_seed_materias.sql`, con `idx: 5` en el
 journal.
 
 - [ ] **Step 4: Verificar contra la base**
@@ -335,14 +335,14 @@ git commit -m "feat(db): add materias and catedras, rework calificaciones"
 ### Task 3: Seed del catálogo de materias
 
 **Files:**
-- Create: `drizzle/0004_seed_materias.sql`
+- Create: `drizzle/0005_seed_materias.sql`
 - Modify: `drizzle/meta/_journal.json`
 
 **Interfaces:**
 - Consumes: tabla `materias` de la Task 2
 - Produces: filas de `materias` con las que la UI puede poblar los selects
 
-- [ ] **Step 1: Crear `drizzle/0004_seed_materias.sql`**
+- [ ] **Step 1: Crear `drizzle/0005_seed_materias.sql`**
 
 Catálogo provisional, armado con las materias que aparecían en los mocks. El
 dueño del proyecto va a reemplazarlo por el plan de estudios real del IPESMI.
@@ -379,10 +379,10 @@ En `drizzle/meta/_journal.json`, agregar al final del array `entries` (ajustando
 
 ```json
     {
-      "idx": 4,
+      "idx": 5,
       "version": "7",
       "when": 1785849194085,
-      "tag": "0004_seed_materias",
+      "tag": "0005_seed_materias",
       "breakpoints": true
     }
 ```
@@ -2821,7 +2821,7 @@ git commit -m "chore: remove grade mocks and legacy notas view"
 
 **El seed de materias es provisorio.** Está armado con las materias que
 aparecían en los mocks, con años inventados. Antes de usar esto de verdad hay
-que reemplazar `drizzle/0004_seed_materias.sql` por el plan de estudios real del
+que reemplazar `drizzle/0005_seed_materias.sql` por el plan de estudios real del
 IPESMI.
 
 **Falta poblar alumnos.** La planilla del profesor lista los `perfiles` con
