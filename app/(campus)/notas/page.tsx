@@ -1,13 +1,14 @@
 import { requireUser } from "@/lib/session"
+import { getNotasDeAlumno } from "@/lib/notas"
+import { NotasAlumno } from "@/components/dashboard/notas/notas-alumno"
 
 export default async function Page() {
-  await requireUser()
-  return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card py-20 text-center">
-      <h2 className="text-lg font-semibold text-foreground">Notas</h2>
-      <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-        Módulo de notas disponible próximamente en esta sección.
-      </p>
-    </div>
-  )
+  const user = await requireUser()
+
+  if (user.role === "alumno") {
+    const filas = await getNotasDeAlumno()
+    return <NotasAlumno filas={filas} />
+  }
+
+  return null // profesor y admin se completan en las tasks 10 y 11
 }
