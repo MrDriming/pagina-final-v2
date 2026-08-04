@@ -1,13 +1,14 @@
 import { requireUser } from "@/lib/session"
-import { getNotasDeAlumno, getPlanilla } from "@/lib/notas"
-import { getMisCatedras } from "@/lib/catedras"
+import { getNotasDeAlumno, getPlanilla, getNotasParaAdmin } from "@/lib/notas"
+import { getMisCatedras, listarMaterias } from "@/lib/catedras"
 import { NotasAlumno } from "@/components/dashboard/notas/notas-alumno"
 import { PlanillaProfesor } from "@/components/dashboard/notas/planilla-profesor"
+import { NotasAdmin } from "@/components/dashboard/notas/notas-admin"
 
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ catedra?: string }>
+  searchParams: Promise<{ catedra?: string; anio?: string; division?: string; materiaId?: string }>
 }) {
   const user = await requireUser()
 
@@ -32,5 +33,16 @@ export default async function Page({
     )
   }
 
-  return null // admin se completa en la task 11
+  const { anio, division, materiaId } = await searchParams
+  const [filas, materias] = await Promise.all([
+    getNotasParaAdmin({ anio, division, materiaId }),
+    listarMaterias(),
+  ])
+  return (
+    <NotasAdmin
+      filas={filas}
+      materias={materias}
+      filtros={{ anio, division, materiaId }}
+    />
+  )
 }
