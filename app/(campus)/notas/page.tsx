@@ -21,7 +21,10 @@ export default async function Page({
     const catedras = await getMisCatedras()
     const planilla = catedraId ? await getPlanilla(catedraId) : null
     return (
+      // La `key` fuerza el remonte al cambiar de cátedra: si no, el estado de
+      // edición sobrevive y se pueden guardar los valores de la materia anterior.
       <PlanillaProfesor
+        key={catedraId ?? "sin-catedra"}
         catedras={catedras}
         catedraId={catedraId ?? null}
         planilla={planilla}
