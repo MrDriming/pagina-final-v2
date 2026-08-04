@@ -1,6 +1,6 @@
 import "server-only"
 
-import { and, eq, asc, type SQL } from "drizzle-orm"
+import { and, eq, asc, inArray, type SQL } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
 import { calificaciones, materias, perfiles } from "@/lib/db/schema"
@@ -40,6 +40,13 @@ export interface FilaAdmin {
   t1: number | null
   t2: number | null
   t3: number | null
+}
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+function esUuid(valor: string): boolean {
+  return UUID_RE.test(valor)
 }
 
 /** El ciclo lo decide el servidor. Si viniera del form, se podrían cargar
@@ -96,6 +103,12 @@ export async function getPlanilla(catedraId: string): Promise<Planilla | null> {
     )
     .orderBy(asc(perfiles.nombre))
 
+  // Si el curso no tiene alumnos, no hay nada que buscar. Además `inArray`
+  // con una lista vacía es un caso borde que conviene no pisar.
+  if (alumnos.length === 0) {
+    return { catedra, filas: [] }
+  }
+
   const notas = await db
     .select({
       alumnoId: calificaciones.alumnoId,
@@ -108,6 +121,12 @@ export async function getPlanilla(catedraId: string): Promise<Planilla | null> {
       and(
         eq(calificaciones.materiaId, catedra.materiaId),
         eq(calificaciones.cicloLectivo, cicloActual()),
+        // Acotado al curso: la base no devuelve notas de otras divisiones,
+        // en vez de confiar en que después las filtremos en memoria.
+        inArray(
+          calificaciones.alumnoId,
+          alumnos.map((a) => a.id),
+        ),
       ),
     )
 
@@ -174,6 +193,10 @@ export async function guardarNota(input: {
   t3: unknown
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const user = await requireUser()
+
+  if (!esUuid(input.alumnoId) || !esUuid(input.materiaId)) {
+    return { ok: false, error: "Identificador inválido" }
+  }
 
   const [alumno] = await db
     .select({
