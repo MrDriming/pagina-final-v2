@@ -7,7 +7,11 @@ import { DEV_AUTH_BYPASS } from "../dev-auth"
 const RUTAS_PUBLICAS = ["/auth", "/login"]
 
 function esRutaPublica(pathname: string) {
-  return RUTAS_PUBLICAS.some((ruta) => pathname.startsWith(ruta))
+  // Coincidencia por segmento, no por prefijo: si no, una ruta futura como
+  // `/authoring` o `/loginx` quedaría pública sin que nadie lo decida.
+  return RUTAS_PUBLICAS.some(
+    (ruta) => pathname === ruta || pathname.startsWith(`${ruta}/`),
+  )
 }
 
 export async function updateSession(request: NextRequest) {
