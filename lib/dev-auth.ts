@@ -23,3 +23,10 @@ const rolPedido = process.env.DEV_BYPASS_ROLE as Role | undefined
 
 export const DEV_BYPASS_ROLE: Role =
   rolPedido && ROLES_VALIDOS.includes(rolPedido) ? rolPedido : "admin"
+
+/**
+ * Con `DEV_BYPASS_USER_ID` apuntando a un `perfiles.user_id` real, el bypass
+ * se hace pasar por ESE usuario en vez de por uno inventado. Es lo que
+ * permite probar el scoping de verdad en local sin poder loguearse.
+ */
+export const DEV_BYPASS_USER_ID = process.env.DEV_BYPASS_USER_ID || null

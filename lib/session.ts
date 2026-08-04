@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm"
 import { createClient } from "@/lib/supabase/server"
 import { db } from "@/lib/db"
 import { perfiles } from "@/lib/db/schema"
-import { DEV_AUTH_BYPASS, DEV_BYPASS_ROLE } from "@/lib/dev-auth"
+import { DEV_AUTH_BYPASS, DEV_BYPASS_ROLE, DEV_BYPASS_USER_ID } from "@/lib/dev-auth"
 
 export type Role = "alumno" | "profesor" | "admin"
 
@@ -32,6 +32,31 @@ function normalizarRol(valor: unknown): Role {
 export async function getSessionUser(): Promise<SessionUser | null> {
   // Bypass de desarrollo: usuario falso, sin tocar Supabase ni la DB.
   if (DEV_AUTH_BYPASS) {
+    // Si DEV_BYPASS_USER_ID está seteado, buscá el usuario real en la base
+    if (DEV_BYPASS_USER_ID) {
+      const [perfil] = await db
+        .select()
+        .from(perfiles)
+        .where(eq(perfiles.userId, DEV_BYPASS_USER_ID))
+        .limit(1)
+
+      if (perfil) {
+        return {
+          id: DEV_BYPASS_USER_ID,
+          name: perfil.nombre,
+          email: "dev@localhost",
+          role: normalizarRol(perfil.rol),
+          anio: perfil.anio,
+          division: perfil.division,
+        }
+      }
+
+      // Si el id no existe, logueá un warning
+      console.warn(
+        `[DEV] DEV_BYPASS_USER_ID="${DEV_BYPASS_USER_ID}" no encontrado en perfiles`
+      )
+    }
+
     return {
       id: "00000000-0000-0000-0000-000000000000",
       name: "Usuario de Desarrollo",
