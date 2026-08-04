@@ -15,6 +15,20 @@
       "when": 1785849194083,
       "tag": "0001_supabase_auth",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785854584347,
+      "tag": "0002_wide_scarlet_spider",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1785854618501,
+      "tag": "0003_silky_silver_centurion",
+      "breakpoints": true
     }
   ]
 }
