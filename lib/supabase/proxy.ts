@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 import { hasEnvVars } from "../utils"
+import { DEV_AUTH_BYPASS } from "../dev-auth"
 
 // Rutas accesibles sin sesión. `/` renderiza la AuthScreen por su cuenta,
 // así que no debe redirigir. Agregá acá cualquier ruta pública nueva.
@@ -15,6 +16,11 @@ export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
   })
+
+  // Bypass de desarrollo: no se chequea sesión, pasa todo.
+  if (DEV_AUTH_BYPASS) {
+    return supabaseResponse
+  }
 
   // Sin variables de entorno no hay nada que chequear.
   if (!hasEnvVars) {

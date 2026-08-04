@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm"
 import { createClient } from "@/lib/supabase/server"
 import { db } from "@/lib/db"
 import { perfiles } from "@/lib/db/schema"
+import { DEV_AUTH_BYPASS, DEV_BYPASS_ROLE } from "@/lib/dev-auth"
 
 export type Role = "alumno" | "profesor" | "admin"
 
@@ -29,6 +30,18 @@ function normalizarRol(valor: unknown): Role {
  * browser nunca toca `perfiles`, y el rol nunca sale del cliente.
  */
 export async function getSessionUser(): Promise<SessionUser | null> {
+  // Bypass de desarrollo: usuario falso, sin tocar Supabase ni la DB.
+  if (DEV_AUTH_BYPASS) {
+    return {
+      id: "00000000-0000-0000-0000-000000000000",
+      name: "Usuario de Desarrollo",
+      email: "dev@localhost",
+      role: DEV_BYPASS_ROLE,
+      anio: null,
+      division: null,
+    }
+  }
+
   const supabase = await createClient()
   const { data, error } = await supabase.auth.getClaims()
   const claims = data?.claims
