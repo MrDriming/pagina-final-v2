@@ -31,7 +31,7 @@
 | `lib/permisos.test.ts` | Tests de la regla |
 | `lib/catedras.ts` | Consultas y ABM de cátedras (`server-only`) |
 | `lib/notas.ts` | Consultas de notas + Server Action de guardado (`server-only`) |
-| `drizzle/0003_seed_materias.sql` | Seed del catálogo de materias |
+| `drizzle/0004_seed_materias.sql` | Seed del catálogo de materias |
 | `app/(campus)/layout.tsx` | Sidebar + Topbar |
 | `app/(campus)/page.tsx` | Inicio |
 | `app/(campus)/error.tsx` | Boundary de errores del campus |
@@ -91,8 +91,10 @@ export default defineConfig({
     include: ["lib/**/*.test.ts"],
   },
   resolve: {
+    // process.cwd(), no __dirname: en un config .ts cargado por Vite,
+    // __dirname puede quedar indefinido según cómo se transpile.
     alias: {
-      "@": path.resolve(__dirname, "."),
+      "@": path.resolve(process.cwd()),
     },
   },
 })
@@ -249,56 +251,79 @@ export const consultas = pgTable("consultas", {
 })
 ```
 
-- [ ] **Step 2: Generar la migración**
+- [ ] **Step 2: Fase A — agregar, sin borrar todavía**
+
+`drizzle-kit generate` es interactivo, y **no hay TTY disponible**: si pregunta
+algo, el comando muere con `Interactive prompts require a TTY terminal`.
+
+Drizzle solo pregunta por renames cuando en una misma tabla detecta columnas
+agregadas **y** borradas en el mismo diff. Así que la migración va en dos pasos,
+cada uno sin ambigüedad.
+
+Para esta fase, al schema del Step 1 hay que devolverle **temporalmente** las dos
+columnas que se van a borrar. En `calificaciones`, agregar dentro del objeto de
+columnas:
+
+```ts
+    materia: text("materia"),
+```
+
+(sin `.notNull()`: la columna vieja se va en la fase B). Y en `perfiles`:
+
+```ts
+  catedras: text("catedras").array(),
+```
+
+Ahora el diff es solo "tablas nuevas + columnas nuevas".
 
 Run: `npx drizzle-kit generate`
+Expected: `drizzle/0002_<nombre>.sql`, **sin ningún prompt**. Si igual pregunta
+algo, el comando falla con el error de TTY: parar, no reintentar, y reportar
+BLOCKED — hay que resolverlo con el dueño del proyecto.
 
-Este comando es interactivo y **necesita una terminal real** — desde un shell no
-interactivo tira `Interactive prompts require a TTY terminal`.
-
-Va a preguntar por las columnas de `calificaciones`, porque `materia` (text)
-desaparece y aparece `materia_id` (uuid). Responder que son columnas **nuevas**,
-no un rename:
-
-```
-Is materia_id column created or renamed from another column?
-> + materia_id            create column
-```
-
-Lo mismo si pregunta por `catedras` en `perfiles`: es una columna **borrada**,
-no renombrada.
-
-Expected: se crea `drizzle/0002_<nombre>.sql` con `CREATE TABLE materias`,
-`CREATE TABLE catedras`, los `ALTER TABLE calificaciones` y el
-`ALTER TABLE perfiles DROP COLUMN catedras`.
-
-- [ ] **Step 3: Revisar el SQL generado antes de aplicarlo**
-
-Abrir `drizzle/0002_*.sql` y confirmar que:
-- crea `materias` y `catedras`
-- sobre `calificaciones`: dropea `materia`, agrega `materia_id`, `ciclo_lectivo`, `actualizado_por`
-- dropea `perfiles.catedras`
-- **no** dropea `perfiles`, `consultas` ni ninguna tabla entera
-
-Si aparece un `DROP TABLE` de algo que no sea esperado, parar y revisar el schema.
-
-- [ ] **Step 4: Aplicar**
+Revisar el SQL generado antes de aplicar. Debe contener:
+- `CREATE TABLE materias` y `CREATE TABLE catedras`
+- `ALTER TABLE calificaciones ADD COLUMN` de `materia_id`, `ciclo_lectivo`, `actualizado_por`
+- **ningún** `DROP COLUMN` y **ningún** `DROP TABLE`
 
 Run: `npx drizzle-kit migrate`
 Expected: `migrations applied successfully!`
 
-- [ ] **Step 5: Verificar contra la base**
+- [ ] **Step 3: Fase B — borrar las columnas viejas**
+
+Sacar del schema las dos líneas temporales del Step 2 (`materia` en
+`calificaciones`, `catedras` en `perfiles`), dejándolo idéntico al Step 1.
+
+Ahora el diff es solo "columnas borradas", que tampoco dispara el prompt de
+rename.
+
+Run: `npx drizzle-kit generate`
+Expected: `drizzle/0003_<nombre>.sql`, sin prompts.
+
+Revisar que contenga exactamente dos `DROP COLUMN` (`calificaciones.materia` y
+`perfiles.catedras`) y ningún `DROP TABLE`. Si aparece un `DROP TABLE`, parar y
+revisar el schema antes de aplicar.
+
+Run: `npx drizzle-kit migrate`
+Expected: `migrations applied successfully!`
+
+**Ojo con la numeración:** esta task consume los números `0002` y `0003`, así que
+el seed de la Task 3 pasa a ser `0004_seed_materias.sql`, con `idx: 4` en el
+journal.
+
+- [ ] **Step 4: Verificar contra la base**
 
 ```bash
 PGPASSWORD="$(grep -oP '(?<=postgres:)[^@]+' .env.local | head -1)" \
 psql -h db.usdcjtohempuoztierzj.supabase.co -p 5432 -U postgres -d postgres \
-  -c "\d catedras" -c "\d calificaciones" -c "\d materias"
+  -c "\d catedras" -c "\d calificaciones" -c "\d materias" -c "\d perfiles"
 ```
 
-Expected: las tres tablas existen; `calificaciones` tiene `materia_id`,
-`ciclo_lectivo` y `actualizado_por`; `perfiles` ya no tiene `catedras`.
+Expected: las tres tablas nuevas existen; `calificaciones` tiene `materia_id`,
+`ciclo_lectivo` y `actualizado_por` y **ya no** tiene `materia`; `perfiles` ya no
+tiene `catedras`.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add lib/db/schema.ts drizzle/
@@ -310,14 +335,14 @@ git commit -m "feat(db): add materias and catedras, rework calificaciones"
 ### Task 3: Seed del catálogo de materias
 
 **Files:**
-- Create: `drizzle/0003_seed_materias.sql`
+- Create: `drizzle/0004_seed_materias.sql`
 - Modify: `drizzle/meta/_journal.json`
 
 **Interfaces:**
 - Consumes: tabla `materias` de la Task 2
 - Produces: filas de `materias` con las que la UI puede poblar los selects
 
-- [ ] **Step 1: Crear `drizzle/0003_seed_materias.sql`**
+- [ ] **Step 1: Crear `drizzle/0004_seed_materias.sql`**
 
 Catálogo provisional, armado con las materias que aparecían en los mocks. El
 dueño del proyecto va a reemplazarlo por el plan de estudios real del IPESMI.
@@ -354,10 +379,10 @@ En `drizzle/meta/_journal.json`, agregar al final del array `entries` (ajustando
 
 ```json
     {
-      "idx": 3,
+      "idx": 4,
       "version": "7",
       "when": 1785849194085,
-      "tag": "0003_seed_materias",
+      "tag": "0004_seed_materias",
       "breakpoints": true
     }
 ```
@@ -2796,7 +2821,7 @@ git commit -m "chore: remove grade mocks and legacy notas view"
 
 **El seed de materias es provisorio.** Está armado con las materias que
 aparecían en los mocks, con años inventados. Antes de usar esto de verdad hay
-que reemplazar `drizzle/0003_seed_materias.sql` por el plan de estudios real del
+que reemplazar `drizzle/0004_seed_materias.sql` por el plan de estudios real del
 IPESMI.
 
 **Falta poblar alumnos.** La planilla del profesor lista los `perfiles` con
