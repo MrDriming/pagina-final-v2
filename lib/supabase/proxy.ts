@@ -3,12 +3,10 @@ import { NextResponse, type NextRequest } from "next/server"
 import { hasEnvVars } from "../utils"
 import { DEV_AUTH_BYPASS } from "../dev-auth"
 
-// Rutas accesibles sin sesión. `/` renderiza la AuthScreen por su cuenta,
-// así que no debe redirigir. Agregá acá cualquier ruta pública nueva.
-const RUTAS_PUBLICAS = ["/auth"]
+// Rutas accesibles sin sesión. Agregá acá cualquier ruta pública nueva.
+const RUTAS_PUBLICAS = ["/auth", "/login"]
 
 function esRutaPublica(pathname: string) {
-  if (pathname === "/") return true
   return RUTAS_PUBLICAS.some((ruta) => pathname.startsWith(ruta))
 }
 
@@ -59,7 +57,7 @@ export async function updateSession(request: NextRequest) {
 
   if (!user && !esRutaPublica(request.nextUrl.pathname)) {
     const url = request.nextUrl.clone()
-    url.pathname = "/"
+    url.pathname = "/login"
     return NextResponse.redirect(url)
   }
 

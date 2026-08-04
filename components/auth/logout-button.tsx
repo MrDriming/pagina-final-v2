@@ -10,7 +10,7 @@ export function LogoutButton({ className }: { className?: string }) {
   const logout = async () => {
     const supabase = createClient()
     await supabase.auth.signOut()
-    router.push("/")
+    router.push("/login")
     router.refresh()
   }
 

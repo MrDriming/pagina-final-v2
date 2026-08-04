@@ -53,7 +53,7 @@ export function ForgotPasswordForm() {
         </p>
         <div className="pt-4 border-t border-border/60 text-center">
           <Link
-            href="/"
+            href="/login"
             className="text-xs font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
           >
             Volver al inicio
@@ -103,7 +103,7 @@ export function ForgotPasswordForm() {
 
       <div className="pt-4 border-t border-border/60 text-center">
         <Link
-          href="/"
+          href="/login"
           className="text-xs font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
         >
           ¿Te acordaste? Iniciá sesión

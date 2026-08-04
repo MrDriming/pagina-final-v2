@@ -1,15 +1,8 @@
 "use client"
 
-import {
-  EVENTOS,
-  MESAS,
-  NOTAS_ALUMNO,
-  PERFIL,
-  promedioGeneral,
-  type Rol,
-} from "@/lib/mock-data"
+import Link from "next/link"
+import { EVENTOS, MESAS, PERFIL, type Rol } from "@/lib/mock-data"
 import { StatusBadge } from "./status-badge"
-import type { SectionId } from "./sidebar"
 import {
   TrendingUp,
   CalendarClock,
@@ -63,15 +56,13 @@ function formatFecha(iso: string) {
 
 export function DashboardHome({
   rol,
-  onNavigate,
+  resumen,
 }: {
   rol: Rol
-  onNavigate: (id: SectionId) => void
+  resumen: { promedio: number; aprobadas: number; pendientes: number }
 }) {
   const perfil = PERFIL[rol]
-  const promedio = promedioGeneral(NOTAS_ALUMNO)
-  const aprobadas = NOTAS_ALUMNO.filter((n) => n.estado === "aprobado").length
-  const pendientes = NOTAS_ALUMNO.filter((n) => n.estado !== "aprobado").length
+  const { promedio, aprobadas, pendientes } = resumen
   const proximos = [...EVENTOS].sort((a, b) => a.fecha.localeCompare(b.fecha)).slice(0, 4)
 
   const stats =
@@ -115,12 +106,12 @@ export function DashboardHome({
         <div className="rounded-xl border border-border bg-card lg:col-span-2">
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
             <h2 className="text-sm font-semibold text-foreground">Próximas evaluaciones</h2>
-            <button
-              onClick={() => onNavigate("calendario")}
+            <Link
+              href="/calendario"
               className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
             >
               Ver calendario <ArrowRight className="size-3.5" />
-            </button>
+            </Link>
           </div>
           <ul className="divide-y divide-border">
             {proximos.map((e) => (
@@ -155,9 +146,9 @@ export function DashboardHome({
             <h2 className="text-sm font-semibold text-foreground">Accesos rápidos</h2>
           </div>
           <div className="space-y-2 p-4">
-            <QuickLink label="Ver mis notas" onClick={() => onNavigate("notas")} icon={TrendingUp} />
-            <QuickLink label="Calendario de exámenes" onClick={() => onNavigate("calendario")} icon={CalendarClock} />
-            <QuickLink label="Mesas especiales" onClick={() => onNavigate("mesas")} icon={Landmark} />
+            <QuickLink label="Ver mis notas" href="/notas" icon={TrendingUp} />
+            <QuickLink label="Calendario de exámenes" href="/calendario" icon={CalendarClock} />
+            <QuickLink label="Mesas especiales" href="/mesas" icon={Landmark} />
           </div>
         </div>
       </div>
@@ -167,16 +158,16 @@ export function DashboardHome({
 
 function QuickLink({
   label,
-  onClick,
+  href,
   icon: Icon,
 }: {
   label: string
-  onClick: () => void
+  href: string
   icon: React.ElementType
 }) {
   return (
-    <button
-      onClick={onClick}
+    <Link
+      href={href}
       className="flex w-full items-center gap-3 rounded-lg border border-border bg-background px-3 py-3 text-left text-sm font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-accent"
     >
       <span className="flex size-8 items-center justify-center rounded-md bg-primary/10 text-primary">
@@ -184,6 +175,6 @@ function QuickLink({
       </span>
       <span className="flex-1">{label}</span>
       <ArrowRight className="size-4 text-muted-foreground" />
-    </button>
+    </Link>
   )
 }

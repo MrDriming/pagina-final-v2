@@ -1,60 +1,48 @@
 "use client"
 
+import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import type { Rol } from "@/lib/mock-data"
 import {
-  GraduationCap,
   LayoutDashboard,
   ClipboardList,
   CalendarDays,
   Landmark,
-  MessageSquare, // Icono para consultas
+  MessageSquare,
   Settings,
   Users,
   X,
 } from "lucide-react"
 
-// 1. Agregamos "consultas" y "catedras" a la unión de tipos
-export type SectionId = "inicio" | "notas" | "calendario" | "mesas" | "consultas" | "catedras" | "usuarios" | "config"
-
 interface NavItem {
-  id: SectionId
+  href: string
   label: string
   icon: React.ElementType
   roles: Rol[]
 }
 
-// 2. Agregamos las nuevas opciones en la lista fija respetando la lógica de permisos
 const NAV_ITEMS: NavItem[] = [
-  { id: "inicio", label: "Inicio", icon: LayoutDashboard, roles: ["alumno", "profesor", "admin"] },
-  { id: "notas", label: "Notas", icon: ClipboardList, roles: ["alumno", "profesor", "admin"] },
-  { id: "calendario", label: "Calendario de exámenes", icon: CalendarDays, roles: ["alumno", "profesor", "admin"] },
-  { id: "mesas", label: "Mesas especiales", icon: Landmark, roles: ["alumno", "profesor", "admin"] },
-  
-  // NUEVO: "Consultas" disponible para Alumnos y Profesores
-  { id: "consultas", label: "Consultas Docentes", icon: MessageSquare, roles: ["alumno", "profesor"] },
-  
-  // NUEVO: "Mis Cátedras" exclusivo para el Profesor (para configurar materias/años)
-  { id: "catedras", label: "Mis Cátedras / Años", icon: Settings, roles: ["profesor"] },
-  
-  { id: "usuarios", label: "Usuarios", icon: Users, roles: ["admin"] },
-  { id: "config", label: "Configuración", icon: Settings, roles: ["admin", "profesor"] },
+  { href: "/", label: "Inicio", icon: LayoutDashboard, roles: ["alumno", "profesor", "admin"] },
+  { href: "/notas", label: "Notas", icon: ClipboardList, roles: ["alumno", "profesor", "admin"] },
+  { href: "/calendario", label: "Calendario de exámenes", icon: CalendarDays, roles: ["alumno", "profesor", "admin"] },
+  { href: "/mesas", label: "Mesas especiales", icon: Landmark, roles: ["alumno", "profesor", "admin"] },
+  { href: "/consultas", label: "Consultas Docentes", icon: MessageSquare, roles: ["alumno", "profesor"] },
+  { href: "/catedras", label: "Mis Cátedras", icon: Settings, roles: ["profesor"] },
+  { href: "/usuarios", label: "Usuarios", icon: Users, roles: ["admin"] },
+  { href: "/config", label: "Configuración", icon: Settings, roles: ["admin", "profesor"] },
 ]
 
 export function Sidebar({
   rol,
-  active,
-  onSelect,
   open,
   onClose,
 }: {
   rol: Rol
-  active: SectionId
-  onSelect: (section: SectionId) => void
   open: boolean
   onClose: () => void
 }) {
-  // Filtramos la lista según el rol activo de la sesión
+  const pathname = usePathname()
   const items = NAV_ITEMS.filter((item) => item.roles.includes(rol))
 
   return (
@@ -67,17 +55,16 @@ export function Sidebar({
         />
       )}
 
-      {/* Contenedor principal del Sidebar */}
       <aside
         className={cn(
           "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-transform lg:sticky lg:translate-x-0",
           open ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <div className="flex h-16 items-center justify-between px-6 border-b border-sidebar-border">
+        <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-6">
           <div className="flex flex-col">
-            <span className="font-bold text-lg tracking-wide text-white">IPESMI Técnico</span>
-            <span className="text-[10px] text-emerald-400 font-mono tracking-wider uppercase font-semibold">Campus Virtual</span>
+            <span className="text-lg font-bold tracking-wide text-white">IPESMI Técnico</span>
+            <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-emerald-400">Campus Virtual</span>
           </div>
           <button
             onClick={onClose}
@@ -91,14 +78,13 @@ export function Sidebar({
         <nav className="flex-1 space-y-1 px-3 py-2" aria-label="Navegación principal">
           {items.map((item) => {
             const Icon = item.icon
-            const isActive = active === item.id
+            // Coincidencia exacta: si no, "/" quedaría activo en toda ruta.
+            const isActive = pathname === item.href
             return (
-              <button
-                key={item.id}
-                onClick={() => {
-                  onSelect(item.id)
-                  onClose()
-                }}
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={onClose}
                 className={cn(
                   "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                   isActive
@@ -109,15 +95,13 @@ export function Sidebar({
               >
                 <Icon className="size-4.5 shrink-0" />
                 <span className="truncate">{item.label}</span>
-              </button>
+              </Link>
             )
           })}
         </nav>
 
         <div className="border-t border-sidebar-border px-5 py-4">
-          <p className="text-xs text-sidebar-foreground/55">
-            Ciclo lectivo 2026
-          </p>
+          <p className="text-xs text-sidebar-foreground/55">Ciclo lectivo 2026</p>
           <p className="text-xs text-sidebar-foreground/40">v1.0 · Producción</p>
         </div>
       </aside>

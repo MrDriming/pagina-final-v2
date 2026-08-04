@@ -33,6 +33,7 @@ export function AuthScreen() {
         })
         if (signInError) throw signInError
         // El Server Component de `/` vuelve a leer la sesión y muestra el dashboard.
+        router.push("/")
         router.refresh()
       } else {
         const { data, error: signUpError } = await supabase.auth.signUp({
@@ -48,6 +49,7 @@ export function AuthScreen() {
 
         if (data.session) {
           // Confirmación de mail desactivada: entra directo.
+          router.push("/")
           router.refresh()
         } else {
           router.push("/auth/sign-up-success")
