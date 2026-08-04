@@ -16,8 +16,22 @@ export interface Catedra {
   profesorId: string
 }
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+function esUuid(valor: string): boolean {
+  return UUID_RE.test(valor)
+}
+
 /** Cátedras de un profesor, con el nombre y el año de la materia resueltos. */
 export async function listarCatedras(profesorId: string): Promise<Catedra[]> {
+  // Nadie mira las cátedras de otro salvo un admin. `db` saltea RLS, así que
+  // este chequeo es la única defensa.
+  const user = await requireUser()
+  if (user.id !== profesorId && user.role !== "admin") {
+    throw new Error("No tenés permiso para ver estas cátedras")
+  }
+
   const filas = await db
     .select({
       id: catedras.id,
@@ -87,6 +101,10 @@ export async function asignarCatedra(input: {
     return { ok: false, error: "División inválida" }
   }
 
+  if (!esUuid(input.profesorId) || !esUuid(input.materiaId)) {
+    return { ok: false, error: "Identificador inválido" }
+  }
+
   // El destinatario tiene que existir y ser profesor: asignarle una cátedra a
   // un alumno le abriría las notas de todo el curso.
   const [destino] = await db
@@ -124,6 +142,11 @@ export async function quitarCatedra(
   catedraId: string,
 ): Promise<{ ok: boolean; error?: string }> {
   await requireRole("admin")
+
+  if (!esUuid(catedraId)) {
+    return { ok: false, error: "Identificador inválido" }
+  }
+
   await db.delete(catedras).where(eq(catedras.id, catedraId))
   return { ok: true }
 }
