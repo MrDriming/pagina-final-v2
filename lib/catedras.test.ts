@@ -40,10 +40,19 @@
  * protege nada.
  *
  * El mismo argumento aplica a cambiarRol/asignarCurso: el afterEach también
- * restaura INCONDICIONALMENTE el rol de Aguirre a "profesor" (por si un
- * test de degradación lo dejó en "alumno") antes de tocar sus cátedras, y
- * limpia/restaura el curso de Blanco por si algún test de asignarCurso lo
- * llegó a tocar.
+ * restaura INCONDICIONALMENTE el rol de Vega a "profesor" (por si un test de
+ * degradación lo dejó en "alumno") y limpia/restaura el curso de Blanco por
+ * si algún test de asignarCurso lo llegó a tocar.
+ *
+ * IMPORTANTE — los tests que degradan un rol usan a VEGA como sujeto, NUNCA
+ * a Aguirre. lib/notas.test.ts (otro archivo) asume que Aguirre sigue
+ * siendo profesor con su cátedra de Sistemas Digitales división A durante
+ * toda la corrida. Vitest corre archivos de test en paralelo por default —
+ * este repo lo desactiva con `fileParallelism: false` en vitest.config.ts,
+ * pero aun así, mutar a Aguirre acá sería frágil: un afterEach que no
+ * llegue a correr (timeout, throw) dejaría a Aguirre roto para el otro
+ * archivo. Vega es profesora, no tiene cátedras propias y nada fuera de
+ * este archivo depende de su estado.
  */
 import { afterEach, beforeAll, describe, expect, it } from "vitest"
 import { and, eq, ne, notInArray } from "drizzle-orm"
@@ -72,14 +81,9 @@ describe.skipIf(!process.env.DATABASE_URL)("lib/catedras.ts (integración)", () 
   // Limpieza INCONDICIONAL — ver el comentario largo al principio del
   // archivo para la razón (mutation testing real, no un "por las dudas").
   afterEach(async () => {
-    // Restaurá el rol de Aguirre y de Vega ANTES de tocar cátedras: si
-    // quedaron con un rol distinto por un test roto (p. ej. un profesor
-    // que logró cambiarle el rol a otro), cualquier reinserción de cátedra
-    // de acá abajo tiene que seguir aplicando igual.
-    await db
-      .update(perfiles)
-      .set({ rol: "profesor" })
-      .where(eq(perfiles.userId, AGUIRRE))
+    // Restaurá el rol de Vega ANTES de tocar cátedras: si quedó con un rol
+    // distinto por un test roto, cualquier limpieza de sus cátedras de acá
+    // abajo tiene que seguir aplicando igual.
     await db
       .update(perfiles)
       .set({ rol: "profesor" })
@@ -222,29 +226,35 @@ describe.skipIf(!process.env.DATABASE_URL)("lib/catedras.ts (integración)", () 
   })
 
   it("al degradar un profesor a alumno, sus cátedras desaparecen", async () => {
-    const { cambiarRol } = await comoUsuario(null, () => import("@/lib/catedras"))
+    // Sujeto: Vega, no Aguirre. Ver el comentario al principio del archivo:
+    // Aguirre y su cátedra los usa lib/notas.test.ts en paralelo, así que el
+    // test es autocontenido y se asigna su propia cátedra acá.
+    await db
+      .insert(catedrasTabla)
+      .values({ profesorId: VEGA, materiaId: sistemasDigitalesId, division: "B" })
+      .onConflictDoNothing()
 
-    // Confirmá el estado base: Aguirre tiene su cátedra.
     const antes = await db
       .select({ id: catedrasTabla.id })
       .from(catedrasTabla)
-      .where(eq(catedrasTabla.profesorId, AGUIRRE))
+      .where(eq(catedrasTabla.profesorId, VEGA))
     expect(antes.length).toBeGreaterThan(0)
 
-    const resultado = await cambiarRol({ userId: AGUIRRE, rol: "alumno" })
+    const { cambiarRol } = await comoUsuario(null, () => import("@/lib/catedras"))
+    const resultado = await cambiarRol({ userId: VEGA, rol: "alumno" })
     expect(resultado).toEqual({ ok: true })
 
     const [perfil] = await db
       .select({ rol: perfiles.rol })
       .from(perfiles)
-      .where(eq(perfiles.userId, AGUIRRE))
+      .where(eq(perfiles.userId, VEGA))
     expect(perfil?.rol).toBe("alumno")
 
     // Efecto crítico: sin cátedras, no queda acceso a las notas del curso.
     const despues = await db
       .select({ id: catedrasTabla.id })
       .from(catedrasTabla)
-      .where(eq(catedrasTabla.profesorId, AGUIRRE))
+      .where(eq(catedrasTabla.profesorId, VEGA))
     expect(despues).toHaveLength(0)
   })
 

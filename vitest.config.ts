@@ -14,6 +14,16 @@ export default defineConfig({
     environment: "node",
     include: ["lib/**/*.test.ts"],
     env: envLocal,
+    // Tests de integración contra una única base real: los archivos NO pueden
+    // correr en paralelo. Comparten las mismas filas, y un test que degrada a
+    // un profesor rompe al de otro archivo que asume que sigue siéndolo.
+    fileParallelism: false,
+    // Tests de integración contra una base remota: cada `comoUsuario` hace
+    // resetModules + re-import, y eso construye un pool de pg nuevo con su
+    // handshake TLS. El default de 5s de Vitest es para tests unitarios en
+    // memoria y acá produce fallos intermitentes que no son bugs.
+    testTimeout: 30000,
+    hookTimeout: 30000,
   },
   resolve: {
     // process.cwd(), no __dirname: en un config .ts cargado por Vite,
