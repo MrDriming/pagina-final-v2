@@ -3,9 +3,9 @@ import "server-only"
 import { eq, asc } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { catedras, materias, perfiles } from "@/lib/db/schema"
-import { requireUser, requireRole } from "@/lib/session"
+import { requireUser, requireRole, type Role } from "@/lib/session"
 import type { CatedraScope } from "@/lib/permisos"
-import { DIVISIONES } from "@/lib/grades"
+import { ANIOS, DIVISIONES } from "@/lib/grades"
 
 export interface Catedra {
   id: string
@@ -148,5 +148,108 @@ export async function quitarCatedra(
   }
 
   await db.delete(catedras).where(eq(catedras.id, catedraId))
+  return { ok: true }
+}
+
+const ROLES_VALIDOS: Role[] = ["alumno", "profesor", "admin"]
+
+/**
+ * Cambia el rol de un usuario. Es la única forma de crear un profesor o un
+ * admin: el signup público solo crea alumnos (ver `lib/session.ts` y el
+ * comentario en el README sobre el bootstrap del primer admin).
+ */
+export async function cambiarRol(input: {
+  userId: string
+  rol: string
+}): Promise<{ ok: boolean; error?: string }> {
+  const admin = await requireRole("admin")
+
+  if (!esUuid(input.userId)) {
+    return { ok: false, error: "Identificador inválido" }
+  }
+
+  if (!ROLES_VALIDOS.includes(input.rol as Role)) {
+    return { ok: false, error: "Rol inválido" }
+  }
+
+  // Un admin no puede tocar su propio rol. Si el único admin se degrada,
+  // nadie puede volver a entrar a /usuarios: el sistema queda sin
+  // administración y sin forma de arreglarlo desde la app.
+  if (input.userId === admin.id) {
+    return { ok: false, error: "No podés cambiar tu propio rol" }
+  }
+
+  const [destino] = await db
+    .select({ userId: perfiles.userId })
+    .from(perfiles)
+    .where(eq(perfiles.userId, input.userId))
+    .limit(1)
+
+  if (!destino) return { ok: false, error: "El usuario no existe" }
+
+  const rolNuevo = input.rol as Role
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(perfiles)
+      .set({ rol: rolNuevo })
+      .where(eq(perfiles.userId, input.userId))
+
+    // Si deja de ser profesor, sus cátedras se borran: si no, quedan filas
+    // de `catedras` apuntando a alguien que ya no dicta, y `getPlanilla`
+    // le seguiría dando acceso a notas de alumnos.
+    if (rolNuevo !== "profesor") {
+      await tx.delete(catedras).where(eq(catedras.profesorId, input.userId))
+    }
+  })
+
+  return { ok: true }
+}
+
+/**
+ * Asigna (o limpia) el año y la división de un alumno. Un profesor no tiene
+ * curso propio: sus alumnos salen de sus cátedras, no de su perfil.
+ */
+export async function asignarCurso(input: {
+  userId: string
+  anio: string | null
+  division: string | null
+}): Promise<{ ok: boolean; error?: string }> {
+  await requireRole("admin")
+
+  if (!esUuid(input.userId)) {
+    return { ok: false, error: "Identificador inválido" }
+  }
+
+  if (
+    input.anio !== null &&
+    !ANIOS.includes(input.anio as (typeof ANIOS)[number])
+  ) {
+    return { ok: false, error: "Año inválido" }
+  }
+
+  if (
+    input.division !== null &&
+    !DIVISIONES.includes(input.division as (typeof DIVISIONES)[number])
+  ) {
+    return { ok: false, error: "División inválida" }
+  }
+
+  const [destino] = await db
+    .select({ rol: perfiles.rol })
+    .from(perfiles)
+    .where(eq(perfiles.userId, input.userId))
+    .limit(1)
+
+  if (!destino) return { ok: false, error: "El usuario no existe" }
+  if (destino.rol !== "alumno") {
+    return { ok: false, error: "Solo se puede asignar curso a un alumno" }
+  }
+
+  await db
+    .update(perfiles)
+    .set({ anio: input.anio, division: input.division })
+    .where(eq(perfiles.userId, input.userId))
+
   return { ok: true }
 }

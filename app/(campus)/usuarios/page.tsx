@@ -7,7 +7,7 @@ export default async function Page({
 }: {
   searchParams: Promise<{ u?: string }>
 }) {
-  await requireRole("admin")
+  const admin = await requireRole("admin")
   const { u } = await searchParams
 
   const [usuarios, materias] = await Promise.all([
@@ -25,6 +25,7 @@ export default async function Page({
       materias={materias}
       seleccionado={seleccionado}
       catedras={catedras}
+      usuarioActualId={admin.id}
     />
   )
 }
