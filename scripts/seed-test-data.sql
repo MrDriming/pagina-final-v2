@@ -42,6 +42,12 @@ VALUES
     jsonb_build_object('name', 'Enriquez, Tomás', 'role', 'alumno', 'anio', '4to', 'division', 'A'), now(), now())
 ON CONFLICT (id) DO NOTHING;
 
+-- Profesora sin cátedras, para probar el estado vacío
+INSERT INTO auth.users (id, instance_id, aud, role, email, raw_user_meta_data, created_at, updated_at)
+VALUES ('77777777-7777-7777-7777-777777777777','00000000-0000-0000-0000-000000000000','authenticated','authenticated',
+        'vega@test.local', jsonb_build_object('name','Vega, Carolina','role','profesor'), now(), now())
+ON CONFLICT (id) DO NOTHING;
+
 -- Alumnos en 4to B
 INSERT INTO auth.users (id, instance_id, aud, role, email, raw_user_meta_data, created_at, updated_at)
 VALUES
