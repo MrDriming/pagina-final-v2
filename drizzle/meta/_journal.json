@@ -43,6 +43,13 @@
       "when": 1785849194085,
       "tag": "0005_seed_materias",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1786025777757,
+      "tag": "0006_signup_solo_alumno",
+      "breakpoints": true
     }
   ]
 }

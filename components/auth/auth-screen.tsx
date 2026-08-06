@@ -17,7 +17,6 @@ export function AuthScreen() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [nombre, setNombre] = useState("")
-  const [rol, setRol] = useState<"alumno" | "profesor">("alumno")
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -40,8 +39,11 @@ export function AuthScreen() {
           email,
           password,
           options: {
-            // Queda en raw_user_meta_data; el trigger lo copia a `perfiles`.
-            data: { name: nombre, role: rol },
+            // Sin `role`: el signup público solo crea alumnos. Los
+            // profesores los promueve el admin a mano. No agregues acá un
+            // selector de rol "por comodidad": el trigger de la DB también
+            // lo ignoraría (ver drizzle/0006_signup_solo_alumno.sql).
+            data: { name: nombre },
             emailRedirectTo: `${window.location.origin}/auth/confirm?next=/`,
           },
         })
@@ -147,32 +149,6 @@ export function AuthScreen() {
               />
             </div>
           </div>
-
-          {!isLogin && (
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tipo de Perfil</label>
-              <div className="flex gap-2 p-1 bg-muted rounded-xl border border-border">
-                <button
-                  type="button"
-                  onClick={() => setRol("alumno")}
-                  className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-all ${
-                    rol === "alumno" ? "bg-card text-emerald-600 dark:text-emerald-400 font-bold shadow-xs border border-border/40" : "text-muted-foreground"
-                  }`}
-                >
-                  Estudiante
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRol("profesor")}
-                  className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-all ${
-                    rol === "profesor" ? "bg-card text-emerald-600 dark:text-emerald-400 font-bold shadow-xs border border-border/40" : "text-muted-foreground"
-                  }`}
-                >
-                  Docente
-                </button>
-              </div>
-            </div>
-          )}
 
           <button
             type="submit"
