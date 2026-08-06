@@ -89,7 +89,10 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     id,
     name: perfil?.nombre || (metadata.name as string) || email,
     email,
-    role: normalizarRol(perfil?.rol ?? metadata.role),
+    // El rol sale ÚNICAMENTE de `perfiles`. Nunca de `user_metadata`, que lo
+    // controla el cliente en el signup: por eso el trigger tampoco lo lee.
+    // Sin perfil, el rol es el mínimo, no el que el usuario haya pedido.
+    role: normalizarRol(perfil?.rol),
     anio: perfil?.anio ?? (metadata.anio as string) ?? null,
     division: perfil?.division ?? (metadata.division as string) ?? null,
   }
