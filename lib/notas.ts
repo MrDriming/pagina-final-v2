@@ -155,6 +155,12 @@ export async function getNotasParaAdmin(filtros?: {
   const user = await requireUser()
   if (user.role !== "admin") return []
 
+  // Un materiaId con formato inválido devuelve vacío, no se ignora el filtro:
+  // ignorarlo mostraría MÁS filas de las pedidas, que es falla abierta.
+  if (filtros?.materiaId && !esUuid(filtros.materiaId)) {
+    return []
+  }
+
   const condiciones: SQL[] = [eq(calificaciones.cicloLectivo, cicloActual())]
   if (filtros?.anio) condiciones.push(eq(perfiles.anio, filtros.anio))
   if (filtros?.division) condiciones.push(eq(perfiles.division, filtros.division))
