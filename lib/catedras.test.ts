@@ -38,11 +38,17 @@
  * base si un mutante en quitarCatedra la llegó a borrar. No lo cambies a
  * una limpieza condicional "para simplificar" — esa es la versión que no
  * protege nada.
+ *
+ * El mismo argumento aplica a cambiarRol/asignarCurso: el afterEach también
+ * restaura INCONDICIONALMENTE el rol de Aguirre a "profesor" (por si un
+ * test de degradación lo dejó en "alumno") antes de tocar sus cátedras, y
+ * limpia/restaura el curso de Blanco por si algún test de asignarCurso lo
+ * llegó a tocar.
  */
 import { afterEach, beforeAll, describe, expect, it } from "vitest"
 import { and, eq, ne, notInArray } from "drizzle-orm"
 import { db } from "@/lib/db"
-import { catedras as catedrasTabla, materias } from "@/lib/db/schema"
+import { catedras as catedrasTabla, materias, perfiles } from "@/lib/db/schema"
 import { comoUsuario } from "@/lib/test-support/as-user"
 
 const AGUIRRE = "11111111-1111-1111-1111-111111111111" // profesor
@@ -66,6 +72,19 @@ describe.skipIf(!process.env.DATABASE_URL)("lib/catedras.ts (integración)", () 
   // Limpieza INCONDICIONAL — ver el comentario largo al principio del
   // archivo para la razón (mutation testing real, no un "por las dudas").
   afterEach(async () => {
+    // Restaurá el rol de Aguirre y de Vega ANTES de tocar cátedras: si
+    // quedaron con un rol distinto por un test roto (p. ej. un profesor
+    // que logró cambiarle el rol a otro), cualquier reinserción de cátedra
+    // de acá abajo tiene que seguir aplicando igual.
+    await db
+      .update(perfiles)
+      .set({ rol: "profesor" })
+      .where(eq(perfiles.userId, AGUIRRE))
+    await db
+      .update(perfiles)
+      .set({ rol: "profesor" })
+      .where(eq(perfiles.userId, VEGA))
+
     await db.delete(catedrasTabla).where(eq(catedrasTabla.profesorId, VEGA))
 
     await db
@@ -84,6 +103,13 @@ describe.skipIf(!process.env.DATABASE_URL)("lib/catedras.ts (integración)", () 
       .insert(catedrasTabla)
       .values({ profesorId: AGUIRRE, materiaId: sistemasDigitalesId, division: "A" })
       .onConflictDoNothing()
+
+    // Restaurá el curso de Blanco (4to A) por si un test de asignarCurso lo
+    // tocó.
+    await db
+      .update(perfiles)
+      .set({ anio: "4to", division: "A" })
+      .where(eq(perfiles.userId, BLANCO))
   })
 
   it("asignarCatedra rechaza si lo llama un profesor (no admin)", async () => {
@@ -158,5 +184,105 @@ describe.skipIf(!process.env.DATABASE_URL)("lib/catedras.ts (integración)", () 
     const { listarCatedras } = await comoUsuario(VEGA, () => import("@/lib/catedras"))
 
     await expect(listarCatedras(AGUIRRE)).rejects.toThrow(/permiso/i)
+  })
+
+  it("cambiarRol rechaza si lo llama un profesor", async () => {
+    const { cambiarRol } = await comoUsuario(AGUIRRE, () => import("@/lib/catedras"))
+
+    await expect(cambiarRol({ userId: VEGA, rol: "admin" })).rejects.toThrow(/permiso/i)
+
+    const [vega] = await db
+      .select({ rol: perfiles.rol })
+      .from(perfiles)
+      .where(eq(perfiles.userId, VEGA))
+    expect(vega?.rol).toBe("profesor")
+  })
+
+  it("cambiarRol rechaza que un admin se cambie el rol a sí mismo", async () => {
+    const { cambiarRol } = await comoUsuario(null, () => import("@/lib/catedras"))
+    const adminId = "00000000-0000-0000-0000-000000000000"
+
+    const resultado = await cambiarRol({ userId: adminId, rol: "alumno" })
+
+    expect(resultado).toEqual({ ok: false, error: "No podés cambiar tu propio rol" })
+  })
+
+  it("cambiarRol rechaza un rol inválido", async () => {
+    const { cambiarRol } = await comoUsuario(null, () => import("@/lib/catedras"))
+
+    const resultado = await cambiarRol({ userId: VEGA, rol: "superadmin" })
+
+    expect(resultado).toEqual({ ok: false, error: "Rol inválido" })
+
+    const [vega] = await db
+      .select({ rol: perfiles.rol })
+      .from(perfiles)
+      .where(eq(perfiles.userId, VEGA))
+    expect(vega?.rol).toBe("profesor")
+  })
+
+  it("al degradar un profesor a alumno, sus cátedras desaparecen", async () => {
+    const { cambiarRol } = await comoUsuario(null, () => import("@/lib/catedras"))
+
+    // Confirmá el estado base: Aguirre tiene su cátedra.
+    const antes = await db
+      .select({ id: catedrasTabla.id })
+      .from(catedrasTabla)
+      .where(eq(catedrasTabla.profesorId, AGUIRRE))
+    expect(antes.length).toBeGreaterThan(0)
+
+    const resultado = await cambiarRol({ userId: AGUIRRE, rol: "alumno" })
+    expect(resultado).toEqual({ ok: true })
+
+    const [perfil] = await db
+      .select({ rol: perfiles.rol })
+      .from(perfiles)
+      .where(eq(perfiles.userId, AGUIRRE))
+    expect(perfil?.rol).toBe("alumno")
+
+    // Efecto crítico: sin cátedras, no queda acceso a las notas del curso.
+    const despues = await db
+      .select({ id: catedrasTabla.id })
+      .from(catedrasTabla)
+      .where(eq(catedrasTabla.profesorId, AGUIRRE))
+    expect(despues).toHaveLength(0)
+  })
+
+  it("asignarCurso rechaza si lo llama un profesor", async () => {
+    const { asignarCurso } = await comoUsuario(AGUIRRE, () => import("@/lib/catedras"))
+
+    await expect(
+      asignarCurso({ userId: BLANCO, anio: "5to", division: "B" }),
+    ).rejects.toThrow(/permiso/i)
+
+    const [blanco] = await db
+      .select({ anio: perfiles.anio, division: perfiles.division })
+      .from(perfiles)
+      .where(eq(perfiles.userId, BLANCO))
+    expect(blanco).toEqual({ anio: "4to", division: "A" })
+  })
+
+  it("asignarCurso rechaza un año que no está en las constantes", async () => {
+    const { asignarCurso } = await comoUsuario(null, () => import("@/lib/catedras"))
+
+    const resultado = await asignarCurso({ userId: BLANCO, anio: "7mo", division: "A" })
+
+    expect(resultado).toEqual({ ok: false, error: "Año inválido" })
+  })
+
+  it("asignarCurso rechaza una división que no está en las constantes", async () => {
+    const { asignarCurso } = await comoUsuario(null, () => import("@/lib/catedras"))
+
+    const resultado = await asignarCurso({ userId: BLANCO, anio: "4to", division: "Z" })
+
+    expect(resultado).toEqual({ ok: false, error: "División inválida" })
+  })
+
+  it("asignarCurso rechaza asignarle curso a un profesor", async () => {
+    const { asignarCurso } = await comoUsuario(null, () => import("@/lib/catedras"))
+
+    const resultado = await asignarCurso({ userId: AGUIRRE, anio: "4to", division: "A" })
+
+    expect(resultado).toEqual({ ok: false, error: "Solo se puede asignar curso a un alumno" })
   })
 })
