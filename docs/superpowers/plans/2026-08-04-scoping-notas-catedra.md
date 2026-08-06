@@ -315,7 +315,7 @@ journal.
 
 ```bash
 PGPASSWORD="$(grep -oP '(?<=postgres:)[^@]+' .env.local | head -1)" \
-psql -h db.usdcjtohempuoztierzj.supabase.co -p 5432 -U postgres -d postgres \
+psql -h db.TU-PROYECTO.supabase.co -p 5432 -U postgres -d postgres \
   -c "\d catedras" -c "\d calificaciones" -c "\d materias" -c "\d perfiles"
 ```
 
@@ -399,7 +399,7 @@ Expected: `migrations applied successfully!`
 
 ```bash
 PGPASSWORD="$(grep -oP '(?<=postgres:)[^@]+' .env.local | head -1)" \
-psql -h db.usdcjtohempuoztierzj.supabase.co -p 5432 -U postgres -d postgres \
+psql -h db.TU-PROYECTO.supabase.co -p 5432 -U postgres -d postgres \
   -c "SELECT anio, count(*) FROM public.materias GROUP BY anio ORDER BY anio;"
 ```
 
