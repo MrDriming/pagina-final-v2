@@ -18,7 +18,7 @@ export default async function CampusLayout({
           ⚠️ Login desactivado (DEV_BYPASS_AUTH). Usuario falso, rol {user.role}.
         </div>
       )}
-      <CampusShell user={user}>{children}</CampusShell>
+      <CampusShell user={user} devBypass={DEV_AUTH_BYPASS}>{children}</CampusShell>
     </>
   )
 }

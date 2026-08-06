@@ -1,3 +1,4 @@
+import "server-only"
 import { eq } from "drizzle-orm"
 import { createClient } from "@/lib/supabase/server"
 import { db } from "@/lib/db"

@@ -3,18 +3,22 @@
 import type { Rol } from "@/lib/mock-data"
 import { Menu, Bell, Search } from "lucide-react"
 import { LogoutButton } from "@/components/auth/logout-button"
-import { DEV_AUTH_BYPASS } from "@/lib/dev-auth"
 
 export function Topbar({
   rol,
   onOpenMenu,
   nombre,
   detalle,
+  devBypass,
 }: {
   rol: Rol
   onOpenMenu: () => void
   nombre: string
   detalle: string
+  // Viene del servidor (campus-shell <- layout de /(campus)), no de
+  // `lib/dev-auth` directamente: ese módulo no es "use client"-safe porque
+  // reexporta un tipo de `lib/session.ts`, que sí es server-only.
+  devBypass: boolean
 }) {
   const iniciales = nombre
     .split(" ")
@@ -43,7 +47,7 @@ export function Topbar({
 
       <div className="ml-auto flex items-center gap-2 md:gap-3">
         {/* Solo en desarrollo, y como indicador: el rol real lo decide el servidor. */}
-        {DEV_AUTH_BYPASS && (
+        {devBypass && (
           <span className="rounded-lg border border-border bg-muted px-2.5 py-1.5 text-xs font-medium text-muted-foreground">
             rol: {rol} · DEV_BYPASS_ROLE
           </span>

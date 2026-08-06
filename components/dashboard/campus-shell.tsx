@@ -7,9 +7,11 @@ import { Topbar } from "@/components/dashboard/topbar"
 
 export function CampusShell({
   user,
+  devBypass,
   children,
 }: {
   user: SessionUser
+  devBypass: boolean
   children: React.ReactNode
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -27,6 +29,7 @@ export function CampusShell({
           onOpenMenu={() => setMenuOpen(true)}
           nombre={user.name}
           detalle={user.email}
+          devBypass={devBypass}
         />
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 md:px-6 md:py-8">
           {children}
