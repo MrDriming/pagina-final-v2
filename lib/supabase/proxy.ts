@@ -24,9 +24,20 @@ export async function updateSession(request: NextRequest) {
     return supabaseResponse
   }
 
-  // Sin variables de entorno no hay nada que chequear.
+  // Sin variables de entorno no hay forma de validar la sesión. Un deploy
+  // mal configurado (env vars faltantes) no puede traducirse en "dejar
+  // pasar todo": eso desactivaría la protección de todas las rutas
+  // privadas en producción. Cerramos en vez de abrir: mismo trato que un
+  // usuario no autenticado, redirect a /login salvo que la ruta ya sea
+  // pública (si no, un usuario sin config quedaría en loop de redirects
+  // porque /login también redirigiría).
   if (!hasEnvVars) {
-    return supabaseResponse
+    if (esRutaPublica(request.nextUrl.pathname)) {
+      return supabaseResponse
+    }
+    const url = request.nextUrl.clone()
+    url.pathname = "/login"
+    return NextResponse.redirect(url)
   }
 
   // Con Fluid compute, no guardar este cliente en una global.
