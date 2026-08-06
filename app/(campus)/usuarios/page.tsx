@@ -1,13 +1,30 @@
 import { requireRole } from "@/lib/session"
+import { listarUsuarios, listarMaterias, listarCatedras } from "@/lib/catedras"
+import { UsuariosView } from "@/components/dashboard/usuarios-view"
 
-export default async function Page() {
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ u?: string }>
+}) {
   await requireRole("admin")
+  const { u } = await searchParams
+
+  const [usuarios, materias] = await Promise.all([
+    listarUsuarios(),
+    listarMaterias(),
+  ])
+
+  const seleccionado = usuarios.find((x) => x.userId === u) ?? null
+  const catedras =
+    seleccionado?.rol === "profesor" ? await listarCatedras(seleccionado.userId) : []
+
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card py-20 text-center">
-      <h2 className="text-lg font-semibold text-foreground">Usuarios</h2>
-      <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-        Módulo de gestión de usuarios disponible próximamente en esta sección.
-      </p>
-    </div>
+    <UsuariosView
+      usuarios={usuarios}
+      materias={materias}
+      seleccionado={seleccionado}
+      catedras={catedras}
+    />
   )
 }
