@@ -17,6 +17,14 @@ import {
  * OJO: la FK contra `auth.users` y los triggers viven en ese SQL manual,
  * fuera del schema de Drizzle. Usá `drizzle-kit generate` + `migrate`,
  * NUNCA `drizzle-kit push`, o el push te los borra al no verlos acá.
+ *
+ * SEGUNDA TRAMPA, si escribís una migración a mano: el `when` que le pongas
+ * en `drizzle/meta/_journal.json` tiene que ser MAYOR que el de la última
+ * aplicada. El migrador compara ese número contra el `created_at` más alto
+ * de `drizzle.__drizzle_migrations`, así que con un timestamp bajo el
+ * comando dice "migrations applied successfully" y no aplica nada. Usá
+ * `Date.now()` al momento de crearla. Ya pasó una vez con
+ * `0005_seed_materias`.
  */
 export const perfiles = pgTable("perfiles", {
   userId: uuid("user_id").primaryKey(),
