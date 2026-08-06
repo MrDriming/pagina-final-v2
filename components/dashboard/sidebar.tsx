@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import type { Rol } from "@/lib/mock-data"
+import type { Role } from "@/lib/session"
 import {
   LayoutDashboard,
   ClipboardList,
@@ -19,7 +19,7 @@ interface NavItem {
   href: string
   label: string
   icon: React.ElementType
-  roles: Rol[]
+  roles: Role[]
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -38,7 +38,7 @@ export function Sidebar({
   open,
   onClose,
 }: {
-  rol: Rol
+  rol: Role
   open: boolean
   onClose: () => void
 }) {
@@ -102,7 +102,7 @@ export function Sidebar({
 
         <div className="border-t border-sidebar-border px-5 py-4">
           <p className="text-xs text-sidebar-foreground/55">Ciclo lectivo 2026</p>
-          <p className="text-xs text-sidebar-foreground/40">v1.0 · Producción</p>
+          <p className="text-xs text-sidebar-foreground/40">En desarrollo</p>
         </div>
       </aside>
     </>

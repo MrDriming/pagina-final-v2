@@ -1,10 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import type { Rol } from "@/lib/mock-data"
+import type { Role } from "@/lib/session"
 import { MessageSquare, Send, CheckCircle2, Clock } from "lucide-react"
 
-export function ConsultasView({ rol }: { rol: Rol }) {
+export function ConsultasView({ rol }: { rol: Role }) {
   const [mensaje, setMensaje] = useState("")
 
   // Simulación de bandeja de consultas

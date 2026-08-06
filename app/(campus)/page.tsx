@@ -12,12 +12,6 @@ export default async function Page() {
       ? resumenAlumno(await getNotasDeAlumno())
       : { promedio: 0, aprobadas: 0, pendientes: 0 }
 
-  return (
-    <div className="space-y-4">
-      <div className="p-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-xs text-emerald-600 font-medium">
-        👋 Hola {user.name} — Conectado como {user.role} en el sistema del IPESMI
-      </div>
-      <DashboardHome rol={user.role} resumen={resumen} />
-    </div>
-  )
+  return <DashboardHome user={user} resumen={resumen} />
+
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import type { Rol } from "@/lib/mock-data"
+import type { Role } from "@/lib/session"
 import { Menu, Bell, Search } from "lucide-react"
 import { LogoutButton } from "@/components/auth/logout-button"
 
@@ -11,7 +11,7 @@ export function Topbar({
   detalle,
   devBypass,
 }: {
-  rol: Rol
+  rol: Role
   onOpenMenu: () => void
   nombre: string
   detalle: string
