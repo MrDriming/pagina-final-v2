@@ -1,20 +1,26 @@
 "use client"
 
-import { cn } from "@/lib/utils"
-import { PERFIL, ROLES, type Rol } from "@/lib/mock-data"
+import type { Role } from "@/lib/session"
 import { Menu, Bell, Search } from "lucide-react"
+import { LogoutButton } from "@/components/auth/logout-button"
 
 export function Topbar({
   rol,
-  onRolChange,
   onOpenMenu,
+  nombre,
+  detalle,
+  devBypass,
 }: {
-  rol: Rol
-  onRolChange: (rol: Rol) => void
+  rol: Role
   onOpenMenu: () => void
+  nombre: string
+  detalle: string
+  // Viene del servidor (campus-shell <- layout de /(campus)), no de
+  // `lib/dev-auth` directamente: ese módulo no es "use client"-safe porque
+  // reexporta un tipo de `lib/session.ts`, que sí es server-only.
+  devBypass: boolean
 }) {
-  const perfil = PERFIL[rol]
-  const iniciales = perfil.nombre
+  const iniciales = nombre
     .split(" ")
     .slice(0, 2)
     .map((p) => p[0])
@@ -40,27 +46,12 @@ export function Topbar({
       </div>
 
       <div className="ml-auto flex items-center gap-2 md:gap-3">
-        {/* Selector de rol (demo) */}
-        <div
-          className="flex items-center rounded-lg border border-border bg-muted p-0.5"
-          role="group"
-          aria-label="Cambiar rol"
-        >
-          {ROLES.map((r) => (
-            <button
-              key={r.value}
-              onClick={() => onRolChange(r.value)}
-              className={cn(
-                "rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors",
-                rol === r.value
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {r.label}
-            </button>
-          ))}
-        </div>
+        {/* Solo en desarrollo, y como indicador: el rol real lo decide el servidor. */}
+        {devBypass && (
+          <span className="rounded-lg border border-border bg-muted px-2.5 py-1.5 text-xs font-medium text-muted-foreground">
+            rol: {rol} · DEV_BYPASS_ROLE
+          </span>
+        )}
 
         <button
           className="relative rounded-lg p-2 text-muted-foreground hover:bg-muted"
@@ -75,9 +66,10 @@ export function Topbar({
             {iniciales}
           </div>
           <div className="hidden leading-tight sm:block">
-            <p className="text-sm font-medium text-foreground">{perfil.nombre}</p>
-            <p className="text-xs text-muted-foreground">{perfil.detalle}</p>
+            <p className="text-sm font-medium text-foreground">{nombre}</p>
+            <p className="text-xs text-muted-foreground">{detalle}</p>
           </div>
+          <LogoutButton />
         </div>
       </div>
     </header>

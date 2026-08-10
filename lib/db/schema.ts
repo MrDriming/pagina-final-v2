@@ -1,34 +1,114 @@
-import { pgTable, text, integer, uuid, timestamp } from "drizzle-orm/pg-core"
+import {
+  pgTable,
+  text,
+  integer,
+  uuid,
+  timestamp,
+  unique,
+} from "drizzle-orm/pg-core"
 
-// Tabla de Perfiles para agregar las materias/años de los profesores
+/**
+ * Perfil de la aplicación, 1:1 con `auth.users` de Supabase.
+ *
+ * `userId` es el mismo UUID que `auth.users.id`. La fila la crea sola el
+ * trigger `on_auth_user_created` (ver `drizzle/0001_supabase_auth.sql`),
+ * leyendo `raw_user_meta_data` del signup.
+ *
+ * OJO: la FK contra `auth.users` y los triggers viven en ese SQL manual,
+ * fuera del schema de Drizzle. Usá `drizzle-kit generate` + `migrate`,
+ * NUNCA `drizzle-kit push`, o el push te los borra al no verlos acá.
+ *
+ * SEGUNDA TRAMPA, si escribís una migración a mano: el `when` que le pongas
+ * en `drizzle/meta/_journal.json` tiene que ser MAYOR que el de la última
+ * aplicada. El migrador compara ese número contra el `created_at` más alto
+ * de `drizzle.__drizzle_migrations`, así que con un timestamp bajo el
+ * comando dice "migrations applied successfully" y no aplica nada. Usá
+ * `Date.now()` al momento de crearla. Ya pasó una vez con
+ * `0005_seed_materias`.
+ */
 export const perfiles = pgTable("perfiles", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: text("user_id").notNull(),
-  rol: text("rol").$type<"alumno" | "profesor" | "admin">().notNull(),
-  // 1️⃣ CORRECCIÓN: En Drizzle, la función array() se pasa como argumento dentro de text(), no encadenada al final.
-  catedras: text("catedras").array(), 
+  userId: uuid("user_id").primaryKey(),
+  nombre: text("nombre").notNull().default(""),
+  rol: text("rol")
+    .$type<"alumno" | "profesor" | "admin">()
+    .notNull()
+    .default("alumno"),
+  anio: text("anio"),
+  division: text("division"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 })
 
-// Tabla de Calificaciones configurada por TRIMESTRES
-export const calificaciones = pgTable("calificaciones", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  alumnoId: text("alumno_id").notNull(),
-  materia: text("materia").notNull(),
-  trimestre1: integer("trimestre_1"),
-  trimestre2: integer("trimestre_2"),
-  trimestre3: integer("trimestre_3"),
-  updatedAt: timestamp("updated_at").defaultNow(),
-})
+/** Catálogo de materias. Cada materia pertenece a un año del plan. */
+export const materias = pgTable(
+  "materias",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    nombre: text("nombre").notNull(),
+    anio: text("anio").notNull(),
+  },
+  (t) => [unique("materias_nombre_anio_key").on(t.nombre, t.anio)],
+)
+
+/**
+ * Quién dicta qué. Esta tabla decide todos los permisos sobre notas.
+ * El año no está acá: sale de `materias.anio`.
+ */
+export const catedras = pgTable(
+  "catedras",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    profesorId: uuid("profesor_id")
+      .notNull()
+      .references(() => perfiles.userId, { onDelete: "cascade" }),
+    materiaId: uuid("materia_id")
+      .notNull()
+      .references(() => materias.id, { onDelete: "cascade" }),
+    division: text("division").notNull(),
+  },
+  (t) => [
+    unique("catedras_profesor_materia_division_key").on(
+      t.profesorId,
+      t.materiaId,
+      t.division,
+    ),
+  ],
+)
+
+/** Calificaciones por trimestre, una fila por alumno + materia + ciclo. */
+export const calificaciones = pgTable(
+  "calificaciones",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    alumnoId: uuid("alumno_id")
+      .notNull()
+      .references(() => perfiles.userId, { onDelete: "cascade" }),
+    materiaId: uuid("materia_id")
+      .notNull()
+      .references(() => materias.id),
+    cicloLectivo: integer("ciclo_lectivo").notNull(),
+    trimestre1: integer("trimestre_1"),
+    trimestre2: integer("trimestre_2"),
+    trimestre3: integer("trimestre_3"),
+    actualizadoPor: uuid("actualizado_por").references(() => perfiles.userId),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+  (t) => [
+    unique("calificaciones_alumno_materia_ciclo_key").on(
+      t.alumnoId,
+      t.materiaId,
+      t.cicloLectivo,
+    ),
+  ],
+)
 
 // Tabla para Consultas Docentes
 export const consultas = pgTable("consultas", {
   id: uuid("id").primaryKey().defaultRandom(),
-  alumnoId: text("alumno_id").notNull(),
-  profesorId: text("profesor_id").notNull(),
+  alumnoId: uuid("alumno_id").notNull(),
+  profesorId: uuid("profesor_id").notNull(),
   materia: text("materia").notNull(),
   mensaje: text("mensaje").notNull(),
   respuesta: text("respuesta"),
-  // 2️⃣ CORRECCIÓN: El valor por defecto de un string (text) debe ir entre comillas dentro de .default('pendiente')
-  estado: text("estado").default("pendiente"), 
-  createdAt: timestamp("created_at").defaultNow(),
+  estado: text("estado").default("pendiente"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 })

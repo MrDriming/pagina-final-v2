@@ -1,49 +1,66 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { ShieldCheck, Mail, Lock, User, ArrowRight, Loader2 } from "lucide-react"
-// ➡️ Importamos las funciones nativas de tu lib/auth-client.ts
-import { signIn, signUp } from "@/lib/auth-client"
+// ➡️ Auth de Supabase (mismo kit que lib/supabase/*)
+import { createClient } from "@/lib/supabase/client"
 
 export function AuthScreen() {
   const [isLogin, setIsLogin] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  
+  const router = useRouter()
+
   // Estados de los campos
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [nombre, setNombre] = useState("")
-  const [rol, setRol] = useState<"alumno" | "profesor">("alumno")
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(false)
+    const supabase = createClient()
     setError(null)
     setIsLoading(true)
 
     try {
       if (isLogin) {
-        // Autenticación con Better Auth
-        const { error: signInError } = await signIn.email({
+        const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
-          callbackURL: "/", // Redirige al inicio tras loguearse
         })
-        if (signInError) throw new Error(signInError.message || "Credenciales incorrectas")
+        if (signInError) throw signInError
+        // El Server Component de `/` vuelve a leer la sesión y muestra el dashboard.
+        router.push("/")
+        router.refresh()
       } else {
-        // Registro pasándole los campos adicionales mapeados en tu schema
-        const { error: signUpError } = await signUp.email({
+        const { data, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
-          name: nombre,
-          role: rol, // Se guarda en el campo role mapeado en tu auth.ts
-          callbackURL: "/",
+          options: {
+            // Sin `role`: el signup público solo crea alumnos. Los
+            // profesores los promueve el admin a mano. No agregues acá un
+            // selector de rol "por comodidad": el trigger de la DB también
+            // lo ignoraría (ver drizzle/0006_signup_solo_alumno.sql).
+            data: { name: nombre },
+            emailRedirectTo: `${window.location.origin}/auth/confirm?next=/`,
+          },
         })
-        if (signUpError) throw new Error(signUpError.message || "Error al registrar el usuario")
+        if (signUpError) throw signUpError
+
+        if (data.session) {
+          // Confirmación de mail desactivada: entra directo.
+          router.push("/")
+          router.refresh()
+        } else {
+          router.push("/auth/sign-up-success")
+        }
       }
-    } catch (err: any) {
-      setError(err.message || "Ocurrió un error inesperado")
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error ? err.message : "Ocurrió un error inesperado",
+      )
     } finally {
       setIsLoading(false)
     }
@@ -52,7 +69,7 @@ export function AuthScreen() {
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-muted/30 px-4 py-12 sm:px-6 lg:px-8">
       <div className="w-full max-w-md space-y-7 bg-card p-8 rounded-2xl border border-border shadow-xs">
-        
+
         {/* Encabezado */}
         <div className="flex flex-col items-center text-center space-y-2">
           <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/30">
@@ -75,7 +92,7 @@ export function AuthScreen() {
 
         {/* Formulario */}
         <form onSubmit={handleSubmit} className="space-y-4">
-          
+
           {!isLogin && (
             <div className="space-y-1">
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nombre y Apellido</label>
@@ -109,7 +126,17 @@ export function AuthScreen() {
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Contraseña</label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Contraseña</label>
+              {isLogin && (
+                <Link
+                  href="/auth/forgot-password"
+                  className="text-xs font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
+                >
+                  ¿La olvidaste?
+                </Link>
+              )}
+            </div>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/70" />
               <input
@@ -122,32 +149,6 @@ export function AuthScreen() {
               />
             </div>
           </div>
-
-          {!isLogin && (
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tipo de Perfil</label>
-              <div className="flex gap-2 p-1 bg-muted rounded-xl border border-border">
-                <button
-                  type="button"
-                  onClick={() => setRol("alumno")}
-                  className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-all ${
-                    rol === "alumno" ? "bg-card text-emerald-600 dark:text-emerald-400 font-bold shadow-xs border border-border/40" : "text-muted-foreground"
-                  }`}
-                >
-                  Estudiante
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRol("profesor")}
-                  className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-all ${
-                    rol === "profesor" ? "bg-card text-emerald-600 dark:text-emerald-400 font-bold shadow-xs border border-border/40" : "text-muted-foreground"
-                  }`}
-                >
-                  Docente
-                </button>
-              </div>
-            </div>
-          )}
 
           <button
             type="submit"

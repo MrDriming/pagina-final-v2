@@ -1,0 +1,370 @@
+{
+  "id": "f2ea0a4e-963d-445a-bbd5-d9392bbabac1",
+  "prevId": "8092989a-16c4-42ba-9a79-e10b1bb67dcd",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.calificaciones": {
+      "name": "calificaciones",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "alumno_id": {
+          "name": "alumno_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "materia_id": {
+          "name": "materia_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ciclo_lectivo": {
+          "name": "ciclo_lectivo",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "trimestre_1": {
+          "name": "trimestre_1",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "trimestre_2": {
+          "name": "trimestre_2",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "trimestre_3": {
+          "name": "trimestre_3",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "actualizado_por": {
+          "name": "actualizado_por",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "calificaciones_alumno_id_perfiles_user_id_fk": {
+          "name": "calificaciones_alumno_id_perfiles_user_id_fk",
+          "tableFrom": "calificaciones",
+          "tableTo": "perfiles",
+          "columnsFrom": [
+            "alumno_id"
+          ],
+          "columnsTo": [
+            "user_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "calificaciones_materia_id_materias_id_fk": {
+          "name": "calificaciones_materia_id_materias_id_fk",
+          "tableFrom": "calificaciones",
+          "tableTo": "materias",
+          "columnsFrom": [
+            "materia_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "calificaciones_actualizado_por_perfiles_user_id_fk": {
+          "name": "calificaciones_actualizado_por_perfiles_user_id_fk",
+          "tableFrom": "calificaciones",
+          "tableTo": "perfiles",
+          "columnsFrom": [
+            "actualizado_por"
+          ],
+          "columnsTo": [
+            "user_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "calificaciones_alumno_materia_ciclo_key": {
+          "name": "calificaciones_alumno_materia_ciclo_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "alumno_id",
+            "materia_id",
+            "ciclo_lectivo"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.catedras": {
+      "name": "catedras",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "profesor_id": {
+          "name": "profesor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "materia_id": {
+          "name": "materia_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "division": {
+          "name": "division",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "catedras_profesor_id_perfiles_user_id_fk": {
+          "name": "catedras_profesor_id_perfiles_user_id_fk",
+          "tableFrom": "catedras",
+          "tableTo": "perfiles",
+          "columnsFrom": [
+            "profesor_id"
+          ],
+          "columnsTo": [
+            "user_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "catedras_materia_id_materias_id_fk": {
+          "name": "catedras_materia_id_materias_id_fk",
+          "tableFrom": "catedras",
+          "tableTo": "materias",
+          "columnsFrom": [
+            "materia_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "catedras_profesor_materia_division_key": {
+          "name": "catedras_profesor_materia_division_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "profesor_id",
+            "materia_id",
+            "division"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.consultas": {
+      "name": "consultas",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "alumno_id": {
+          "name": "alumno_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "profesor_id": {
+          "name": "profesor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "materia": {
+          "name": "materia",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mensaje": {
+          "name": "mensaje",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "respuesta": {
+          "name": "respuesta",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "estado": {
+          "name": "estado",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'pendiente'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.materias": {
+      "name": "materias",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "anio": {
+          "name": "anio",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "materias_nombre_anio_key": {
+          "name": "materias_nombre_anio_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "nombre",
+            "anio"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.perfiles": {
+      "name": "perfiles",
+      "schema": "",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "rol": {
+          "name": "rol",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'alumno'"
+        },
+        "anio": {
+          "name": "anio",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "division": {
+          "name": "division",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
