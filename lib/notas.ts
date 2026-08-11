@@ -18,6 +18,7 @@ export interface FilaNotaAlumno {
   t1: number | null
   t2: number | null
   t3: number | null
+  t4: number | null
 }
 
 export interface FilaPlanilla {
@@ -26,6 +27,7 @@ export interface FilaPlanilla {
   t1: number | null
   t2: number | null
   t3: number | null
+  t4: number | null
 }
 
 export interface Planilla {
@@ -42,6 +44,7 @@ export interface FilaAdmin {
   t1: number | null
   t2: number | null
   t3: number | null
+  t4: number | null
 }
 
 const UUID_RE =
@@ -69,6 +72,7 @@ export async function getNotasDeAlumno(): Promise<FilaNotaAlumno[]> {
       t1: calificaciones.trimestre1,
       t2: calificaciones.trimestre2,
       t3: calificaciones.trimestre3,
+      t4: calificaciones.promedio,
     })
     .from(calificaciones)
     .innerJoin(materias, eq(materias.id, calificaciones.materiaId))
@@ -117,6 +121,7 @@ export async function getPlanilla(catedraId: string): Promise<Planilla | null> {
       t1: calificaciones.trimestre1,
       t2: calificaciones.trimestre2,
       t3: calificaciones.trimestre3,
+      t4: calificacioes.promedio,
     })
     .from(calificaciones)
     .where(
@@ -144,6 +149,7 @@ export async function getPlanilla(catedraId: string): Promise<Planilla | null> {
         t1: n?.t1 ?? null,
         t2: n?.t2 ?? null,
         t3: n?.t3 ?? null,
+        t4: n?.t4 ?? null,
       }
     }),
   }
@@ -178,6 +184,7 @@ export async function getNotasParaAdmin(filtros?: {
       t1: calificaciones.trimestre1,
       t2: calificaciones.trimestre2,
       t3: calificaciones.trimestre3,
+      t4: calificaciones.promedio,
     })
     .from(calificaciones)
     .innerJoin(materias, eq(materias.id, calificaciones.materiaId))
@@ -199,6 +206,7 @@ export async function guardarNota(input: {
   t1: unknown
   t2: unknown
   t3: unknown
+  t4: unknoen
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const user = await requireUser()
 
@@ -239,7 +247,7 @@ export async function guardarNota(input: {
     return { ok: false, error: invalida.error }
   }
 
-  const [t1, t2, t3] = validadas.map((v) => (v.ok ? v.valor : null))
+  const [t1, t2, t3, t4] = validadas.map((v) => (v.ok ? v.valor : null))
 
   // Los valores que había antes, para que la auditoría pueda mostrar de qué a
   // qué cambió cada trimestre. Es el dato que se pide cuando alguien reclama
@@ -249,6 +257,7 @@ export async function guardarNota(input: {
       t1: calificaciones.trimestre1,
       t2: calificaciones.trimestre2,
       t3: calificaciones.trimestre3,
+      t4: calificaiones.promedio,
     })
     .from(calificaciones)
     .where(
@@ -266,10 +275,10 @@ export async function guardarNota(input: {
     .where(eq(materias.id, input.materiaId))
     .limit(1)
 
-  const antes = { t1: previa?.t1 ?? null, t2: previa?.t2 ?? null, t3: previa?.t3 ?? null }
-  const ahora = { t1, t2, t3 }
+  const antes = { t1: previa?.t1 ?? null, t2: previa?.t2 ?? null, t3: previa?.t3 ?? null, t4: previa?.t4 ?? null }
+  const ahora = { t1, t2, t3, t4 }
   const huboCambio =
-    antes.t1 !== ahora.t1 || antes.t2 !== ahora.t2 || antes.t3 !== ahora.t3
+    antes.t1 !== ahora.t1 || antes.t2 !== ahora.t2 || antes.t3 !== ahora.t3 || antes.t4 !== ahora.t4
 
   await db.transaction(async (tx) => {
     await tx
@@ -281,6 +290,7 @@ export async function guardarNota(input: {
         trimestre1: t1,
         trimestre2: t2,
         trimestre3: t3,
+        promedio: t4,
         actualizadoPor: user.id,
         updatedAt: new Date(),
       })
@@ -294,6 +304,7 @@ export async function guardarNota(input: {
           trimestre1: t1,
           trimestre2: t2,
           trimestre3: t3,
+          promedio: t4,
           actualizadoPor: user.id,
           updatedAt: new Date(),
         },
@@ -343,8 +354,9 @@ function describirTrimestres(n: {
   t1: number | null
   t2: number | null
   t3: number | null
+  t4: number | null
 }): string {
-  return [n.t1, n.t2, n.t3]
+  return [n.t1, n.t2, n.t3 n.t4]
     .map((v, i) => `${i + 1}º ${v ?? "—"}`)
     .join(", ")
 }
