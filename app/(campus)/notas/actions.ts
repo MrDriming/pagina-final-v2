@@ -8,6 +8,7 @@ export async function guardarNotaAction(input: {
   t1: unknown
   t2: unknown
   t3: unknown
+  t4: unknown
 }) {
   return guardarNota(input)
 }
