@@ -7,6 +7,13 @@ import {
   cambiarRol,
   asignarCurso,
 } from "@/lib/catedras"
+import { crearUsuario, type NuevoUsuario } from "@/lib/usuarios"
+
+export async function crearUsuarioAction(input: NuevoUsuario) {
+  const r = await crearUsuario(input)
+  if (r.ok) revalidatePath("/usuarios")
+  return r
+}
 
 export async function asignarCatedraAction(input: {
   profesorId: string

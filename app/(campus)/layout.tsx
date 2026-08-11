@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation"
 import { getSessionUser } from "@/lib/session"
 import { DEV_AUTH_BYPASS } from "@/lib/dev-auth"
+import { misNotificaciones } from "@/lib/notificaciones"
 import { CampusShell } from "@/components/dashboard/campus-shell"
 
 export default async function CampusLayout({
@@ -11,6 +12,11 @@ export default async function CampusLayout({
   const user = await getSessionUser()
   if (!user) redirect("/login")
 
+  // Se leen acá, en el layout, para que la campana esté al día en cualquier
+  // página sin pedir nada desde el cliente. Un `router.refresh()` después de
+  // una acción vuelve a pasar por acá y las actualiza.
+  const notificaciones = await misNotificaciones()
+
   return (
     <>
       {DEV_AUTH_BYPASS && (
@@ -18,7 +24,13 @@ export default async function CampusLayout({
           ⚠️ Login desactivado (DEV_BYPASS_AUTH). Usuario falso, rol {user.role}.
         </div>
       )}
-      <CampusShell user={user} devBypass={DEV_AUTH_BYPASS}>{children}</CampusShell>
+      <CampusShell
+        user={user}
+        devBypass={DEV_AUTH_BYPASS}
+        notificaciones={notificaciones}
+      >
+        {children}
+      </CampusShell>
     </>
   )
 }

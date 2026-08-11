@@ -5,6 +5,8 @@ import {
   uuid,
   timestamp,
   unique,
+  index,
+  jsonb,
 } from "drizzle-orm/pg-core"
 
 /**
@@ -99,6 +101,68 @@ export const calificaciones = pgTable(
       t.cicloLectivo,
     ),
   ],
+)
+
+/**
+ * Registro de auditoría: qué hizo cada usuario y cuándo.
+ *
+ * El nombre y el rol del actor se guardan COPIADOS, no por join. Si el
+ * usuario se borra o lo degradan de profesor a alumno, el registro tiene que
+ * seguir diciendo quién era en ese momento; un join contra `perfiles` diría
+ * lo que es hoy.
+ *
+ * `actor_id` NO tiene foreign key contra `perfiles`, a propósito. Un registro
+ * de auditoría no puede depender de que la fila referenciada siga existiendo:
+ * el día que se borre a alguien, lo que hizo tiene que seguir estando, con su
+ * id incluido. La integridad referencial acá jugaría en contra.
+ *
+ * Nadie escribe salvo `lib/auditoria.ts`, y nadie actualiza ni borra: un
+ * registro de auditoría editable no sirve para nada.
+ */
+export const auditoria = pgTable(
+  "auditoria",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    actorId: uuid("actor_id"),
+    actorNombre: text("actor_nombre").notNull().default(""),
+    actorRol: text("actor_rol").notNull().default(""),
+    /** Verbo de lo que pasó: `nota.guardar`, `usuario.crear`, etc. */
+    accion: text("accion").notNull(),
+    /** Sobre qué: `calificacion`, `perfil`, `catedra`. */
+    entidad: text("entidad").notNull(),
+    entidadId: text("entidad_id"),
+    /** Contexto libre: valores viejos y nuevos, nombres, materia. */
+    detalle: jsonb("detalle").$type<Record<string, unknown>>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (t) => [
+    index("auditoria_created_at_idx").on(t.createdAt),
+    index("auditoria_actor_idx").on(t.actorId),
+  ],
+)
+
+/**
+ * Notificaciones en la campana de la topbar. Una fila por destinatario: si
+ * un hecho le interesa a tres personas, se escriben tres filas. Es más simple
+ * que una tabla de "leídas" aparte y hace que marcar como leída sea un UPDATE
+ * sobre la propia fila.
+ */
+export const notificaciones = pgTable(
+  "notificaciones",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => perfiles.userId, { onDelete: "cascade" }),
+    tipo: text("tipo").notNull(),
+    titulo: text("titulo").notNull(),
+    cuerpo: text("cuerpo").notNull().default(""),
+    /** Ruta interna a la que lleva el click. Siempre relativa. */
+    link: text("link"),
+    leidaAt: timestamp("leida_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (t) => [index("notificaciones_user_idx").on(t.userId, t.createdAt)],
 )
 
 // Tabla para Consultas Docentes

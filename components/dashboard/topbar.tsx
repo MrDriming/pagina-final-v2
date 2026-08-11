@@ -1,8 +1,10 @@
 "use client"
 
 import type { Role } from "@/lib/session"
-import { Menu, Bell, Search } from "lucide-react"
+import type { Notificacion } from "@/lib/notificaciones"
+import { Menu, Search } from "lucide-react"
 import { LogoutButton } from "@/components/auth/logout-button"
+import { NotificacionesMenu } from "@/components/dashboard/notificaciones-menu"
 
 export function Topbar({
   rol,
@@ -10,6 +12,7 @@ export function Topbar({
   nombre,
   detalle,
   devBypass,
+  notificaciones,
 }: {
   rol: Role
   onOpenMenu: () => void
@@ -19,6 +22,7 @@ export function Topbar({
   // `lib/dev-auth` directamente: ese módulo no es "use client"-safe porque
   // reexporta un tipo de `lib/session.ts`, que sí es server-only.
   devBypass: boolean
+  notificaciones: Notificacion[]
 }) {
   const iniciales = nombre
     .split(" ")
@@ -53,13 +57,7 @@ export function Topbar({
           </span>
         )}
 
-        <button
-          className="relative rounded-lg p-2 text-muted-foreground hover:bg-muted"
-          aria-label="Notificaciones"
-        >
-          <Bell className="size-5" />
-          <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-destructive" />
-        </button>
+        <NotificacionesMenu notificaciones={notificaciones} />
 
         <div className="flex items-center gap-2.5 border-l border-border pl-2 md:pl-3">
           <div className="flex size-9 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">

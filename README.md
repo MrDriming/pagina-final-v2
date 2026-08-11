@@ -15,6 +15,10 @@ a partir de ahora, una acción exclusivamente administrativa.
 Un vez que existe al menos un admin, el resto se resuelve desde la app: la
 pantalla **`/usuarios`** permite:
 
+- **Dar de alta** a un alumno o a un profesor con su rol y su curso ya
+  puestos, sin que la persona tenga que registrarse. La cuenta queda
+  confirmada al instante (no se manda ningún mail) y el admin le entrega la
+  contraseña inicial. Requiere `SUPABASE_SERVICE_ROLE_KEY` (ver más abajo).
 - Cambiar el rol de cualquier usuario (alumno / profesor / admin). Al bajar
   a un profesor de categoría, sus cátedras se borran automáticamente (si no,
   quedarían filas de `catedras` apuntando a alguien que ya no dicta, y eso
@@ -43,12 +47,42 @@ esa pantalla y el sistema quedaría sin administración, sin forma de
 arreglarlo desde la app. Si hace falta bajar al único admin, se hace con el
 mismo tipo de `UPDATE` de arriba.
 
+## Auditoría
+
+Toda modificación que hace un profesor o un admin queda registrada en la
+tabla `auditoria`, y el admin la lee en **`/auditoria`**: quién, qué, cuándo
+y —en el caso de las notas— de qué valor a qué valor pasó cada trimestre.
+
+Dos decisiones de diseño que conviene no revertir sin pensarlas:
+
+- `lib/auditoria.ts` **no atrapa errores**, y el `registrar` va dentro de la
+  misma transacción que la operación que audita. O quedan las dos cosas, o no
+  queda ninguna. Una auditoría que se pierde en silencio no sirve de prueba.
+- `auditoria.actor_id` no tiene foreign key contra `perfiles`, y el nombre y
+  el rol del actor van copiados en la fila. El registro tiene que sobrevivir
+  a que se borre el usuario, y tiene que decir qué era esa persona **en ese
+  momento**, no lo que es hoy.
+
+La aplicación nunca actualiza ni borra filas de `auditoria`.
+
+## Notificaciones
+
+La campana de la barra superior lee la tabla `notificaciones` (una fila por
+destinatario). Se generan solas al cargar o modificar una nota, al cambiar un
+rol, al asignar un curso y al asignar o quitar una cátedra. Las lee el layout
+de `(campus)`, así que un `router.refresh()` después de una acción alcanza
+para que se actualicen.
+
 ## Desarrollo local
 
-Node ≥ 20. Variables de entorno en `.env.local` (ver `DATABASE_URL`,
-`NEXT_PUBLIC_SUPABASE_URL`, etc.). `DEV_BYPASS_AUTH=true` permite entrar sin
-Supabase real; `DEV_BYPASS_ROLE` y `DEV_BYPASS_USER_ID` controlan con qué
-usuario.
+Node ≥ 20. Variables de entorno en `.env.local` (ver `.env.example`).
+`DEV_BYPASS_AUTH=true` permite entrar sin Supabase real; `DEV_BYPASS_ROLE` y
+`DEV_BYPASS_USER_ID` controlan con qué usuario.
+
+`SUPABASE_SERVICE_ROLE_KEY` es la única variable nueva que hace falta agregar
+también en Vercel. Saltea RLS y puede crear y borrar cualquier usuario: va
+**sin** el prefijo `NEXT_PUBLIC_` y solo se usa desde `lib/supabase/admin.ts`,
+que es `server-only`.
 
 ```sh
 npm install
@@ -57,3 +91,15 @@ npm test
 npx tsc --noEmit
 npm run build
 ```
+
+### Migraciones
+
+```sh
+npm run db:migrate
+```
+
+Nunca `drizzle-kit push`: los triggers, las FK contra `auth.users` y el RLS
+viven en SQL escrito a mano y el push no los ve, así que los borra. Si
+escribís una migración a mano, el `when` que le pongas en
+`drizzle/meta/_journal.json` tiene que ser **mayor** que el de la última
+aplicada, o el migrador dice "applied successfully" sin aplicar nada.
