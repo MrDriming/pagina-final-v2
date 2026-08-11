@@ -6,6 +6,8 @@ import { catedras, materias, perfiles } from "@/lib/db/schema"
 import { requireUser, requireRole, type Role } from "@/lib/session"
 import type { CatedraScope } from "@/lib/permisos"
 import { ANIOS, DIVISIONES } from "@/lib/grades"
+import { registrar } from "@/lib/auditoria"
+import { notificar } from "@/lib/notificaciones"
 
 export interface Catedra {
   id: string
@@ -95,7 +97,7 @@ export async function asignarCatedra(input: {
   materiaId: string
   division: string
 }): Promise<{ ok: boolean; error?: string }> {
-  await requireRole("admin")
+  const admin = await requireRole("admin")
 
   if (!DIVISIONES.includes(input.division as (typeof DIVISIONES)[number])) {
     return { ok: false, error: "División inválida" }
@@ -119,21 +121,59 @@ export async function asignarCatedra(input: {
   }
 
   const [materia] = await db
-    .select({ id: materias.id })
+    .select({ id: materias.id, nombre: materias.nombre, anio: materias.anio })
     .from(materias)
     .where(eq(materias.id, input.materiaId))
     .limit(1)
 
   if (!materia) return { ok: false, error: "La materia no existe" }
 
-  await db
-    .insert(catedras)
-    .values({
-      profesorId: input.profesorId,
-      materiaId: input.materiaId,
-      division: input.division,
-    })
-    .onConflictDoNothing()
+  await db.transaction(async (tx) => {
+    const creadas = await tx
+      .insert(catedras)
+      .values({
+        profesorId: input.profesorId,
+        materiaId: input.materiaId,
+        division: input.division,
+      })
+      .onConflictDoNothing()
+      .returning({ id: catedras.id })
+
+    // Si ya la tenía, `onConflictDoNothing` no inserta nada. No es un error,
+    // pero tampoco pasó nada que auditar ni que avisar.
+    const catedra = creadas[0]
+    if (!catedra) return
+
+    const curso = `${materia.anio} ${input.division}`
+
+    await registrar(
+      admin,
+      {
+        accion: "catedra.asignar",
+        entidad: "catedra",
+        entidadId: catedra.id,
+        detalle: {
+          profesorId: input.profesorId,
+          materia: materia.nombre,
+          curso,
+        },
+      },
+      tx,
+    )
+
+    await notificar(
+      [
+        {
+          userId: input.profesorId,
+          tipo: "catedra",
+          titulo: "Te asignaron una cátedra",
+          cuerpo: `${materia.nombre} — ${curso}. Ya podés cargar notas.`,
+          link: "/catedras",
+        },
+      ],
+      tx,
+    )
+  })
 
   return { ok: true }
 }
@@ -141,13 +181,64 @@ export async function asignarCatedra(input: {
 export async function quitarCatedra(
   catedraId: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  await requireRole("admin")
+  const admin = await requireRole("admin")
 
   if (!esUuid(catedraId)) {
     return { ok: false, error: "Identificador inválido" }
   }
 
-  await db.delete(catedras).where(eq(catedras.id, catedraId))
+  // Se lee antes de borrar: después ya no hay de dónde sacar de qué materia
+  // y de qué curso era.
+  const [previa] = await db
+    .select({
+      profesorId: catedras.profesorId,
+      division: catedras.division,
+      materiaNombre: materias.nombre,
+      anio: materias.anio,
+    })
+    .from(catedras)
+    .innerJoin(materias, eq(materias.id, catedras.materiaId))
+    .where(eq(catedras.id, catedraId))
+    .limit(1)
+
+  // Borrar algo que no existe no es un error para el que llama, pero no hay
+  // nada que auditar.
+  if (!previa) return { ok: true }
+
+  const curso = `${previa.anio} ${previa.division}`
+
+  await db.transaction(async (tx) => {
+    await tx.delete(catedras).where(eq(catedras.id, catedraId))
+
+    await registrar(
+      admin,
+      {
+        accion: "catedra.quitar",
+        entidad: "catedra",
+        entidadId: catedraId,
+        detalle: {
+          profesorId: previa.profesorId,
+          materia: previa.materiaNombre,
+          curso,
+        },
+      },
+      tx,
+    )
+
+    await notificar(
+      [
+        {
+          userId: previa.profesorId,
+          tipo: "catedra",
+          titulo: "Te quitaron una cátedra",
+          cuerpo: `${previa.materiaNombre} — ${curso}. Ya no podés cargar notas de ese curso.`,
+          link: "/catedras",
+        },
+      ],
+      tx,
+    )
+  })
+
   return { ok: true }
 }
 
@@ -180,7 +271,7 @@ export async function cambiarRol(input: {
   }
 
   const [destino] = await db
-    .select({ userId: perfiles.userId })
+    .select({ userId: perfiles.userId, rol: perfiles.rol })
     .from(perfiles)
     .where(eq(perfiles.userId, input.userId))
     .limit(1)
@@ -201,6 +292,30 @@ export async function cambiarRol(input: {
     if (rolNuevo !== "profesor") {
       await tx.delete(catedras).where(eq(catedras.profesorId, input.userId))
     }
+
+    await registrar(
+      admin,
+      {
+        accion: "usuario.rol",
+        entidad: "perfil",
+        entidadId: input.userId,
+        detalle: { rolAnterior: destino.rol, rolNuevo },
+      },
+      tx,
+    )
+
+    await notificar(
+      [
+        {
+          userId: input.userId,
+          tipo: "rol",
+          titulo: "Cambió tu rol en el campus",
+          cuerpo: `Pasaste de ${destino.rol} a ${rolNuevo}.`,
+          link: "/",
+        },
+      ],
+      tx,
+    )
   })
 
   return { ok: true }
@@ -215,7 +330,7 @@ export async function asignarCurso(input: {
   anio: string | null
   division: string | null
 }): Promise<{ ok: boolean; error?: string }> {
-  await requireRole("admin")
+  const admin = await requireRole("admin")
 
   if (!esUuid(input.userId)) {
     return { ok: false, error: "Identificador inválido" }
@@ -236,7 +351,11 @@ export async function asignarCurso(input: {
   }
 
   const [destino] = await db
-    .select({ rol: perfiles.rol })
+    .select({
+      rol: perfiles.rol,
+      anio: perfiles.anio,
+      division: perfiles.division,
+    })
     .from(perfiles)
     .where(eq(perfiles.userId, input.userId))
     .limit(1)
@@ -246,10 +365,44 @@ export async function asignarCurso(input: {
     return { ok: false, error: "Solo se puede asignar curso a un alumno" }
   }
 
-  await db
-    .update(perfiles)
-    .set({ anio: input.anio, division: input.division })
-    .where(eq(perfiles.userId, input.userId))
+  const cursoAnterior = describirCurso(destino.anio, destino.division)
+  const cursoNuevo = describirCurso(input.anio, input.division)
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(perfiles)
+      .set({ anio: input.anio, division: input.division })
+      .where(eq(perfiles.userId, input.userId))
+
+    await registrar(
+      admin,
+      {
+        accion: "usuario.curso",
+        entidad: "perfil",
+        entidadId: input.userId,
+        detalle: { cursoAnterior, cursoNuevo },
+      },
+      tx,
+    )
+
+    await notificar(
+      [
+        {
+          userId: input.userId,
+          tipo: "curso",
+          titulo: "Cambió tu curso",
+          cuerpo: `Pasaste de ${cursoAnterior} a ${cursoNuevo}.`,
+          link: "/notas",
+        },
+      ],
+      tx,
+    )
+  })
 
   return { ok: true }
+}
+
+function describirCurso(anio: string | null, division: string | null): string {
+  if (!anio && !division) return "sin curso"
+  return `${anio ?? "?"} ${division ?? "?"}`
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { Trash2, Plus } from "lucide-react"
+import { Trash2, Plus, UserPlus, X } from "lucide-react"
 import type { Catedra } from "@/lib/catedras"
 import { ANIOS, DIVISIONES } from "@/lib/grades"
 import {
@@ -10,6 +10,7 @@ import {
   quitarCatedraAction,
   cambiarRolAction,
   asignarCursoAction,
+  crearUsuarioAction,
 } from "@/app/(campus)/usuarios/actions"
 
 interface Usuario {
@@ -42,6 +43,16 @@ export function UsuariosView({
   const [materiaId, setMateriaId] = useState("")
   const [division, setDivision] = useState("")
   const [error, setError] = useState<string | null>(null)
+  const [aviso, setAviso] = useState<string | null>(null)
+
+  // Alta de un usuario nuevo.
+  const [altaAbierta, setAltaAbierta] = useState(false)
+  const [nuevoNombre, setNuevoNombre] = useState("")
+  const [nuevoEmail, setNuevoEmail] = useState("")
+  const [nuevoPassword, setNuevoPassword] = useState("")
+  const [nuevoRol, setNuevoRol] = useState<string>("alumno")
+  const [nuevoAnio, setNuevoAnio] = useState("")
+  const [nuevaDivision, setNuevaDivision] = useState("")
 
   const [rol, setRol] = useState(seleccionado?.rol ?? "")
   const [anioCurso, setAnioCurso] = useState(seleccionado?.anio ?? "")
@@ -57,6 +68,35 @@ export function UsuariosView({
   }, [seleccionado?.userId])
 
   const esUsuarioActual = seleccionado?.userId === usuarioActualId
+
+  const crear = (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    setAviso(null)
+    startTransition(async () => {
+      const r = await crearUsuarioAction({
+        email: nuevoEmail,
+        nombre: nuevoNombre,
+        rol: nuevoRol,
+        password: nuevoPassword,
+        anio: nuevoAnio || null,
+        division: nuevaDivision || null,
+      })
+      if (!r.ok) { setError(r.error); return }
+
+      setAviso(
+        `${nuevoNombre} ya puede entrar con ${nuevoEmail.trim().toLowerCase()} ` +
+          `y la contraseña que le pusiste.`,
+      )
+      setNuevoNombre("")
+      setNuevoEmail("")
+      setNuevoPassword("")
+      setNuevoAnio("")
+      setNuevaDivision("")
+      setAltaAbierta(false)
+      router.refresh()
+    })
+  }
 
   const guardarRol = () => {
     if (!seleccionado || !rol) return
@@ -112,17 +152,144 @@ export function UsuariosView({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">Gestión de usuarios</h1>
-        <p className="text-sm text-muted-foreground">
-          Rol, curso y cátedras de cada usuario del campus.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-foreground">Gestión de usuarios</h1>
+          <p className="text-sm text-muted-foreground">
+            Alta, rol, curso y cátedras de cada usuario del campus.
+          </p>
+        </div>
+        <button
+          onClick={() => { setAltaAbierta((v) => !v); setError(null); setAviso(null) }}
+          className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+        >
+          {altaAbierta ? <X className="size-4" /> : <UserPlus className="size-4" />}
+          {altaAbierta ? "Cancelar" : "Nuevo usuario"}
+        </button>
       </div>
 
       {error && (
         <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-center text-xs font-medium text-destructive">
           {error}
         </div>
+      )}
+
+      {aviso && (
+        <div className="rounded-lg border border-emerald-600/20 bg-emerald-600/10 p-3 text-center text-xs font-medium text-emerald-700 dark:text-emerald-400">
+          {aviso}
+        </div>
+      )}
+
+      {altaAbierta && (
+        <form
+          onSubmit={crear}
+          className="space-y-4 rounded-xl border border-border bg-card p-5"
+        >
+          <h2 className="text-sm font-semibold text-foreground">Dar de alta un usuario</h2>
+          <p className="text-xs text-muted-foreground">
+            La cuenta queda confirmada al instante y sin mandar ningún mail:
+            entregale vos la contraseña inicial y pedile que la cambie desde
+            «¿La olvidaste?» en la pantalla de ingreso.
+          </p>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="space-y-1">
+              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Nombre y apellido
+              </span>
+              <input
+                required
+                value={nuevoNombre}
+                onChange={(e) => setNuevoNombre(e.target.value)}
+                placeholder="Ej: Facundo Blanco"
+                className={`w-full ${selectClass}`}
+              />
+            </label>
+
+            <label className="space-y-1">
+              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Correo
+              </span>
+              <input
+                required
+                type="email"
+                value={nuevoEmail}
+                onChange={(e) => setNuevoEmail(e.target.value)}
+                placeholder="usuario@ipesmi.edu.ar"
+                className={`w-full ${selectClass}`}
+              />
+            </label>
+
+            <label className="space-y-1">
+              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Contraseña inicial
+              </span>
+              <input
+                required
+                minLength={8}
+                type="text"
+                value={nuevoPassword}
+                onChange={(e) => setNuevoPassword(e.target.value)}
+                placeholder="Mínimo 8 caracteres"
+                className={`w-full ${selectClass}`}
+              />
+            </label>
+
+            <label className="space-y-1">
+              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Rol
+              </span>
+              <select
+                value={nuevoRol}
+                onChange={(e) => setNuevoRol(e.target.value)}
+                className={`w-full ${selectClass}`}
+              >
+                {ROLES.map((r) => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+            </label>
+
+            {nuevoRol === "alumno" && (
+              <>
+                <label className="space-y-1">
+                  <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Año
+                  </span>
+                  <select
+                    value={nuevoAnio}
+                    onChange={(e) => setNuevoAnio(e.target.value)}
+                    className={`w-full ${selectClass}`}
+                  >
+                    <option value="">Sin año…</option>
+                    {ANIOS.map((a) => <option key={a} value={a}>{a}</option>)}
+                  </select>
+                </label>
+                <label className="space-y-1">
+                  <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    División
+                  </span>
+                  <select
+                    value={nuevaDivision}
+                    onChange={(e) => setNuevaDivision(e.target.value)}
+                    className={`w-full ${selectClass}`}
+                  >
+                    <option value="">Sin división…</option>
+                    {DIVISIONES.map((d) => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                </label>
+              </>
+            )}
+          </div>
+
+          <button
+            type="submit"
+            disabled={pendiente}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+          >
+            <UserPlus className="size-4" /> Crear usuario
+          </button>
+        </form>
       )}
 
       <div className="grid gap-6 lg:grid-cols-[280px_1fr]">

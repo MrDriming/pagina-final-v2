@@ -8,6 +8,8 @@ import { requireUser } from "@/lib/session"
 import { puedeEditarNota } from "@/lib/permisos"
 import { validarNota } from "@/lib/grades"
 import { getCatedrasScope, listarCatedras, type Catedra } from "@/lib/catedras"
+import { registrar } from "@/lib/auditoria"
+import { notificar } from "@/lib/notificaciones"
 
 export interface FilaNotaAlumno {
   materiaId: string
@@ -207,6 +209,7 @@ export async function guardarNota(input: {
   const [alumno] = await db
     .select({
       id: perfiles.userId,
+      nombre: perfiles.nombre,
       anio: perfiles.anio,
       division: perfiles.division,
       rol: perfiles.rol,
@@ -238,33 +241,110 @@ export async function guardarNota(input: {
 
   const [t1, t2, t3] = validadas.map((v) => (v.ok ? v.valor : null))
 
-  await db
-    .insert(calificaciones)
-    .values({
-      alumnoId: input.alumnoId,
-      materiaId: input.materiaId,
-      cicloLectivo: cicloActual(),
-      trimestre1: t1,
-      trimestre2: t2,
-      trimestre3: t3,
-      actualizadoPor: user.id,
-      updatedAt: new Date(),
+  // Los valores que había antes, para que la auditoría pueda mostrar de qué a
+  // qué cambió cada trimestre. Es el dato que se pide cuando alguien reclama
+  // una nota.
+  const [previa] = await db
+    .select({
+      t1: calificaciones.trimestre1,
+      t2: calificaciones.trimestre2,
+      t3: calificaciones.trimestre3,
     })
-    .onConflictDoUpdate({
-      target: [
-        calificaciones.alumnoId,
-        calificaciones.materiaId,
-        calificaciones.cicloLectivo,
-      ],
-      set: {
+    .from(calificaciones)
+    .where(
+      and(
+        eq(calificaciones.alumnoId, input.alumnoId),
+        eq(calificaciones.materiaId, input.materiaId),
+        eq(calificaciones.cicloLectivo, cicloActual()),
+      ),
+    )
+    .limit(1)
+
+  const [materia] = await db
+    .select({ nombre: materias.nombre })
+    .from(materias)
+    .where(eq(materias.id, input.materiaId))
+    .limit(1)
+
+  const antes = { t1: previa?.t1 ?? null, t2: previa?.t2 ?? null, t3: previa?.t3 ?? null }
+  const ahora = { t1, t2, t3 }
+  const huboCambio =
+    antes.t1 !== ahora.t1 || antes.t2 !== ahora.t2 || antes.t3 !== ahora.t3
+
+  await db.transaction(async (tx) => {
+    await tx
+      .insert(calificaciones)
+      .values({
+        alumnoId: input.alumnoId,
+        materiaId: input.materiaId,
+        cicloLectivo: cicloActual(),
         trimestre1: t1,
         trimestre2: t2,
         trimestre3: t3,
         actualizadoPor: user.id,
         updatedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: [
+          calificaciones.alumnoId,
+          calificaciones.materiaId,
+          calificaciones.cicloLectivo,
+        ],
+        set: {
+          trimestre1: t1,
+          trimestre2: t2,
+          trimestre3: t3,
+          actualizadoPor: user.id,
+          updatedAt: new Date(),
+        },
+      })
+
+    // Guardar la planilla sin tocar nada es lo más común (el profesor manda
+    // el formulario entero aunque haya editado una sola fila). Auditar eso
+    // llenaría el registro de ruido y taparía los cambios de verdad.
+    if (!huboCambio) return
+
+    await registrar(
+      user,
+      {
+        accion: "nota.guardar",
+        entidad: "calificacion",
+        entidadId: `${input.alumnoId}:${input.materiaId}`,
+        detalle: {
+          alumno: alumno.nombre,
+          materia: materia?.nombre ?? input.materiaId,
+          ciclo: cicloActual(),
+          antes,
+          ahora,
+        },
       },
-    })
+      tx,
+    )
+
+    await notificar(
+      [
+        {
+          userId: input.alumnoId,
+          tipo: "nota",
+          titulo: `Nueva nota en ${materia?.nombre ?? "una materia"}`,
+          cuerpo: `${user.name} actualizó tus notas: ${describirTrimestres(ahora)}.`,
+          link: "/notas",
+        },
+      ],
+      tx,
+    )
+  })
 
   revalidatePath("/notas")
   return { ok: true }
+}
+
+function describirTrimestres(n: {
+  t1: number | null
+  t2: number | null
+  t3: number | null
+}): string {
+  return [n.t1, n.t2, n.t3]
+    .map((v, i) => `${i + 1}º ${v ?? "—"}`)
+    .join(", ")
 }

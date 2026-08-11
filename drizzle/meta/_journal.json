@@ -50,6 +50,13 @@
       "when": 1786025777757,
       "tag": "0006_signup_solo_alumno",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1786450787275,
+      "tag": "0007_auditoria_notificaciones",
+      "breakpoints": true
     }
   ]
 }
