@@ -44,7 +44,11 @@ export function AuthScreen() {
             // selector de rol "por comodidad": el trigger de la DB también
             // lo ignoraría (ver drizzle/0006_signup_solo_alumno.sql).
             data: { name: nombre },
-            emailRedirectTo: `${window.location.origin}/auth/confirm?next=/`,
+            // `/auth/callback`, no `/auth/confirm`: `@supabase/ssr` usa PKCE
+            // y las plantillas de mail de fábrica vuelven con `?code=...`.
+            // `/auth/confirm` espera `token_hash` y solo sirve si además
+            // personalizás la plantilla en Supabase.
+            emailRedirectTo: `${window.location.origin}/auth/callback?next=/`,
           },
         })
         if (signUpError) throw signUpError
