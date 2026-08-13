@@ -8,8 +8,6 @@ import { requireUser } from "@/lib/session"
 import { puedeEditarNota } from "@/lib/permisos"
 import { validarNota } from "@/lib/grades"
 import { getCatedrasScope, listarCatedras, type Catedra } from "@/lib/catedras"
-import { registrar } from "@/lib/auditoria"
-import { notificar } from "@/lib/notificaciones"
 
 export interface FilaNotaAlumno {
   materiaId: string
@@ -18,7 +16,6 @@ export interface FilaNotaAlumno {
   t1: number | null
   t2: number | null
   t3: number | null
-  t4: number | null
 }
 
 export interface FilaPlanilla {
@@ -27,7 +24,6 @@ export interface FilaPlanilla {
   t1: number | null
   t2: number | null
   t3: number | null
-  t4: number | null
 }
 
 export interface Planilla {
@@ -44,7 +40,6 @@ export interface FilaAdmin {
   t1: number | null
   t2: number | null
   t3: number | null
-  t4: number | null
 }
 
 const UUID_RE =
@@ -72,7 +67,6 @@ export async function getNotasDeAlumno(): Promise<FilaNotaAlumno[]> {
       t1: calificaciones.trimestre1,
       t2: calificaciones.trimestre2,
       t3: calificaciones.trimestre3,
-      t4: calificaciones.promedio,
     })
     .from(calificaciones)
     .innerJoin(materias, eq(materias.id, calificaciones.materiaId))
@@ -121,7 +115,6 @@ export async function getPlanilla(catedraId: string): Promise<Planilla | null> {
       t1: calificaciones.trimestre1,
       t2: calificaciones.trimestre2,
       t3: calificaciones.trimestre3,
-      t4: calificaciones.promedio,
     })
     .from(calificaciones)
     .where(
@@ -149,7 +142,6 @@ export async function getPlanilla(catedraId: string): Promise<Planilla | null> {
         t1: n?.t1 ?? null,
         t2: n?.t2 ?? null,
         t3: n?.t3 ?? null,
-        t4: n?.t4 ?? null,
       }
     }),
   }
@@ -184,7 +176,6 @@ export async function getNotasParaAdmin(filtros?: {
       t1: calificaciones.trimestre1,
       t2: calificaciones.trimestre2,
       t3: calificaciones.trimestre3,
-      t4: calificaciones.promedio,
     })
     .from(calificaciones)
     .innerJoin(materias, eq(materias.id, calificaciones.materiaId))
@@ -206,7 +197,6 @@ export async function guardarNota(input: {
   t1: unknown
   t2: unknown
   t3: unknown
-  t4: unknown
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const user = await requireUser()
 
@@ -217,7 +207,6 @@ export async function guardarNota(input: {
   const [alumno] = await db
     .select({
       id: perfiles.userId,
-      nombre: perfiles.nombre,
       anio: perfiles.anio,
       division: perfiles.division,
       rol: perfiles.rol,
@@ -241,125 +230,41 @@ export async function guardarNota(input: {
     return { ok: false, error: "No tenés permiso para editar esta nota" }
   }
 
-  const validadas = [input.t1, input.t2, input.t3, input.t4].map(validarNota)
+  const validadas = [input.t1, input.t2, input.t3].map(validarNota)
   const invalida = validadas.find((v) => !v.ok)
   if (invalida && !invalida.ok) {
     return { ok: false, error: invalida.error }
   }
 
-  const [t1, t2, t3, t4] = validadas.map((v) => (v.ok ? v.valor : null))
+  const [t1, t2, t3] = validadas.map((v) => (v.ok ? v.valor : null))
 
-  // Los valores que había antes, para que la auditoría pueda mostrar de qué a
-  // qué cambió cada trimestre. Es el dato que se pide cuando alguien reclama
-  // una nota.
-  const [previa] = await db
-    .select({
-      t1: calificaciones.trimestre1,
-      t2: calificaciones.trimestre2,
-      t3: calificaciones.trimestre3,
-      t4: calificaciones.promedio,
+  await db
+    .insert(calificaciones)
+    .values({
+      alumnoId: input.alumnoId,
+      materiaId: input.materiaId,
+      cicloLectivo: cicloActual(),
+      trimestre1: t1,
+      trimestre2: t2,
+      trimestre3: t3,
+      actualizadoPor: user.id,
+      updatedAt: new Date(),
     })
-    .from(calificaciones)
-    .where(
-      and(
-        eq(calificaciones.alumnoId, input.alumnoId),
-        eq(calificaciones.materiaId, input.materiaId),
-        eq(calificaciones.cicloLectivo, cicloActual()),
-      ),
-    )
-    .limit(1)
-
-  const [materia] = await db
-    .select({ nombre: materias.nombre })
-    .from(materias)
-    .where(eq(materias.id, input.materiaId))
-    .limit(1)
-
-  const antes = { t1: previa?.t1 ?? null, t2: previa?.t2 ?? null, t3: previa?.t3 ?? null, t4: previa?.t4 ?? null }
-  const ahora = { t1, t2, t3, t4 }
-  const huboCambio =
-    antes.t1 !== ahora.t1 || antes.t2 !== ahora.t2 || antes.t3 !== ahora.t3 || antes.t4 !== ahora.t4
-
-  await db.transaction(async (tx) => {
-    await tx
-      .insert(calificaciones)
-      .values({
-        alumnoId: input.alumnoId,
-        materiaId: input.materiaId,
-        cicloLectivo: cicloActual(),
+    .onConflictDoUpdate({
+      target: [
+        calificaciones.alumnoId,
+        calificaciones.materiaId,
+        calificaciones.cicloLectivo,
+      ],
+      set: {
         trimestre1: t1,
         trimestre2: t2,
         trimestre3: t3,
-        promedio: t4,
         actualizadoPor: user.id,
         updatedAt: new Date(),
-      })
-      .onConflictDoUpdate({
-        target: [
-          calificaciones.alumnoId,
-          calificaciones.materiaId,
-          calificaciones.cicloLectivo,
-        ],
-        set: {
-          trimestre1: t1,
-          trimestre2: t2,
-          trimestre3: t3,
-          promedio: t4,
-          actualizadoPor: user.id,
-          updatedAt: new Date(),
-        },
-      })
-
-    // Guardar la planilla sin tocar nada es lo más común (el profesor manda
-    // el formulario entero aunque haya editado una sola fila). Auditar eso
-    // llenaría el registro de ruido y taparía los cambios de verdad.
-    if (!huboCambio) return
-
-    await registrar(
-      user,
-      {
-        accion: "nota.guardar",
-        entidad: "calificacion",
-        entidadId: `${input.alumnoId}:${input.materiaId}`,
-        detalle: {
-          alumno: alumno.nombre,
-          materia: materia?.nombre ?? input.materiaId,
-          ciclo: cicloActual(),
-          antes,
-          ahora,
-        },
       },
-      tx,
-    )
-
-    await notificar(
-      [
-        {
-          userId: input.alumnoId,
-          tipo: "nota",
-          titulo: `Nueva nota en ${materia?.nombre ?? "una materia"}`,
-          cuerpo: `${user.name} actualizó tus notas: ${describirTrimestres(ahora)}.`,
-          link: "/notas",
-        },
-      ],
-      tx,
-    )
-  })
+    })
 
   revalidatePath("/notas")
   return { ok: true }
-}
-
-function describirTrimestres(n: {
-  t1: number | null
-  t2: number | null
-  t3: number | null
-  t4: number | null
-}): string {
-  return [
-    `1º ${n.t1 ?? "—"}`,
-    `2º ${n.t2 ?? "—"}`,
-    `3º ${n.t3 ?? "—"}`,
-    `Prom: ${n.t4 ?? "—"}`,
-  ].join(", ")
 }
