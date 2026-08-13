@@ -121,7 +121,7 @@ export async function getPlanilla(catedraId: string): Promise<Planilla | null> {
       t1: calificaciones.trimestre1,
       t2: calificaciones.trimestre2,
       t3: calificaciones.trimestre3,
-      t4: calificacioes.promedio,
+      t4: calificaciones.promedio,
     })
     .from(calificaciones)
     .where(
@@ -206,7 +206,7 @@ export async function guardarNota(input: {
   t1: unknown
   t2: unknown
   t3: unknown
-  t4: unknoen
+  t4: unknown
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const user = await requireUser()
 
@@ -241,7 +241,7 @@ export async function guardarNota(input: {
     return { ok: false, error: "No tenés permiso para editar esta nota" }
   }
 
-  const validadas = [input.t1, input.t2, input.t3].map(validarNota)
+  const validadas = [input.t1, input.t2, input.t3, input.t4].map(validarNota)
   const invalida = validadas.find((v) => !v.ok)
   if (invalida && !invalida.ok) {
     return { ok: false, error: invalida.error }
@@ -257,7 +257,7 @@ export async function guardarNota(input: {
       t1: calificaciones.trimestre1,
       t2: calificaciones.trimestre2,
       t3: calificaciones.trimestre3,
-      t4: calificaiones.promedio,
+      t4: calificaciones.promedio,
     })
     .from(calificaciones)
     .where(
@@ -356,7 +356,10 @@ function describirTrimestres(n: {
   t3: number | null
   t4: number | null
 }): string {
-  return [n.t1, n.t2, n.t3 n.t4]
-    .map((v, i) => `${i + 1}º ${v ?? "—"}`)
-    .join(", ")
+  return [
+    `1º ${n.t1 ?? "—"}`,
+    `2º ${n.t2 ?? "—"}`,
+    `3º ${n.t3 ?? "—"}`,
+    `Prom: ${n.t4 ?? "—"}`,
+  ].join(", ")
 }
