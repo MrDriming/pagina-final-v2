@@ -18,7 +18,7 @@ export function PlanillaProfesor({ catedras, catedraId, planilla }: Props) {
   const router = useRouter()
   const [pendiente, startTransition] = useTransition()
   const [editando, setEditando] = useState<string | null>(null)
-  const [form, setForm] = useState({ t1: "", t2: "", t3: "", t4: "" })
+  const [form, setForm] = useState({ t1: "", t2: "", t3: "" })
   const [error, setError] = useState<string | null>(null)
 
   if (catedras.length === 0) {
@@ -45,7 +45,6 @@ export function PlanillaProfesor({ catedras, catedraId, planilla }: Props) {
         t1: form.t1,
         t2: form.t2,
         t3: form.t3,
-        t4: form.t4,
       })
       if (!r.ok) {
         setError(r.error)
@@ -107,7 +106,6 @@ export function PlanillaProfesor({ catedras, catedraId, planilla }: Props) {
                   <th className="px-6 py-4 text-center">1° Trim.</th>
                   <th className="px-6 py-4 text-center">2° Trim.</th>
                   <th className="px-6 py-4 text-center">3° Trim.</th>
-                  <th className="px-6 py-4 text-center">Promedio</th>
                   <th className="px-6 py-4 text-right">Acciones</th>
                 </tr>
               </thead>
@@ -119,7 +117,7 @@ export function PlanillaProfesor({ catedras, catedraId, planilla }: Props) {
                       <td className="px-6 py-4 font-medium text-foreground">
                         {fila.alumnoNombre}
                       </td>
-                      {(["t1", "t2", "t3", "t4"] as const).map((k) => (
+                      {(["t1", "t2", "t3"] as const).map((k) => (
                         <td key={k} className="px-6 py-4 text-center">
                           {editandoEsta ? (
                             <input
@@ -173,7 +171,6 @@ export function PlanillaProfesor({ catedras, catedraId, planilla }: Props) {
                                 t1: fila.t1?.toString() ?? "",
                                 t2: fila.t2?.toString() ?? "",
                                 t3: fila.t3?.toString() ?? "",
-                                t4: fila.t4?.toString() ?? "",
                               })
                             }}
                             className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
