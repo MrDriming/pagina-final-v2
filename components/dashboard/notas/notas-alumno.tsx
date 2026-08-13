@@ -41,7 +41,6 @@ export function NotasAlumno({ filas }: { filas: FilaNotaAlumno[] }) {
                   <th className="px-6 py-4 text-center">1° Trimestre</th>
                   <th className="px-6 py-4 text-center">2° Trimestre</th>
                   <th className="px-6 py-4 text-center">3° Trimestre</th>
-                  <th className="px-6 py-4 text-center">Promedio</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border text-sm">
@@ -53,7 +52,6 @@ export function NotasAlumno({ filas }: { filas: FilaNotaAlumno[] }) {
                     <td className="px-6 py-4 text-center"><Nota valor={f.t1} /></td>
                     <td className="px-6 py-4 text-center"><Nota valor={f.t2} /></td>
                     <td className="px-6 py-4 text-center"><Nota valor={f.t3} /></td>
-                    <td className="px-6 py-4 text-center"><Nota valor={f.t4} /></td>
                   </tr>
                 ))}
               </tbody>
